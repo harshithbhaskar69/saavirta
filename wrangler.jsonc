@@ -1,0 +1,71 @@
+{
+  "$schema": "node_modules/wrangler/config-schema.json",
+  "name": "saavirta-local",
+  "compatibility_date": "2026-10-13",
+  "compatibility_flags": ["nodejs_compat"],
+  "main": "src/worker.ts",
+  "durable_objects": {
+    "bindings": [
+      { "name": "PROVIDER_BUDGET", "class_name": "ProviderBudget" },
+      { "name": "MARKET_COLLECTOR", "class_name": "MarketCollector" },
+    ],
+  },
+  "migrations": [
+    { "tag": "v1", "new_sqlite_classes": ["ProviderBudget"] },
+    { "tag": "v2", "new_sqlite_classes": ["MarketCollector"] },
+  ],
+  "d1_databases": [
+    {
+      "binding": "MARKET_DB",
+      "database_name": "saavirta-markets",
+      "database_id": "00000000-0000-0000-0000-000000000001",
+      "migrations_dir": "migrations",
+    },
+  ],
+  "triggers": { "crons": ["*/5 * * * *"] },
+  "assets": {
+    "directory": "dist/client",
+    "not_found_handling": "none",
+    "binding": "ASSETS",
+  },
+  "kv_namespaces": [
+    {
+      "binding": "WEATHER_CACHE",
+    },
+  ],
+  "ratelimits": [
+    {
+      "name": "API_RATE_LIMIT",
+      "namespace_id": "1001",
+      "simple": {
+        "limit": 60,
+        "period": 60,
+      },
+    },
+  ],
+  "vars": {
+    "PUBLIC_MAPTILER_KEY": "",
+    "WEATHER_PROVIDER_MODE": "public",
+    "APP_ENV": "development",
+    "MARKET_MODE": "live",
+    "COLLECTOR_ENABLED": "false",
+    "FINGRID_CONTRACT_VERIFIED": "true",
+    "ENTSOE_CONTRACT_VERIFIED": "false",
+    "PRICE_REDISPLAY_ALLOWED": "false",
+    "PRICE_EXPORT_ALLOWED": "false",
+  },
+  // Runtime credentials are injected from Infisical; cloud administration tokens are never bindings.
+  "secrets": {
+    "required": ["FINGRID_API_KEY", "ENTSOE_TOKEN", "OPEN_METEO_API_KEY"],
+  },
+  "observability": {
+    "enabled": true,
+    "logs": {
+      "enabled": true,
+      "invocation_logs": false,
+    },
+    "traces": {
+      "enabled": false,
+    },
+  },
+}

@@ -1,0 +1,81 @@
+{
+  "version": "nls-administrative-10k-2026-10-15",
+  "verified": true,
+  "sha256": "f4ca9dc1b8d7b3bc8e6ebf065e89780d479cbf968343c0ac5e6532aa10fa99cc",
+  "sourceSha256": "836624f27dd16cfe614696acc83dbd2718a1072f9a0be199ee0041e7c4953a73",
+  "source": "National Land Survey of Finland, Division into administrative areas, 1:10000",
+  "delivered": "2026-10-15",
+  "license": "CC BY 4.0",
+  "sourceCRS": "EPSG:3067",
+  "targetCRS": "EPSG:4326",
+  "transformation": "GDAL/PROJ ogr2ogr EPSG:3067 to EPSG:4326; RFC7946; no simplification",
+  "gdal": "GDAL 3.13.3 \"Iowa City\", released 2026/08/13",
+  "stateLayer": "Valtakunta",
+  "regionLayer": "Maakunta",
+  "alandFilter": "natcode = '21'",
+  "artifactBytes": 737579,
+  "features": 2,
+  "sourceAcceptance": {
+    "municipalities": 308,
+    "alandMunicipalities": [
+      "035",
+      "043",
+      "060",
+      "062",
+      "065",
+      "076",
+      "170",
+      "295",
+      "318",
+      "417",
+      "438",
+      "478",
+      "736",
+      "766",
+      "771",
+      "941"
+    ],
+    "symmetricDifferenceM2": {
+      "finland": 0.0,
+      "aland": 0.0
+    },
+    "sourceAreaM2": {
+      "finland": 390816584036.9924,
+      "aland": 13359918094.513845
+    },
+    "topologyValid": true,
+    "invalidMunicipalInputs": [
+      "249",
+      "139",
+      "495",
+      "276",
+      "507",
+      "691",
+      "564",
+      "989",
+      "736",
+      "499",
+      "562",
+      "494",
+      "069",
+      "905",
+      "167",
+      "111",
+      "272",
+      "941"
+    ]
+  },
+  "sourceArchiveSha256": "905c2f11e6e4b2260ceefaf07e415fa18de19d26efcd92dcfe9a8986945ef339",
+  "sourceModified": "2026-06-09T11:51:17.567802Z",
+  "gdalImage": "ghcr.io/osgeo/gdal@sha256:64250faf833c06d4b21afce4c27190039ba7ab58d70f0eebc87cf77d929c0b40",
+  "acceptance": {
+    "finlandRings": 1,
+    "finlandVertices": 30729,
+    "alandRings": 1,
+    "alandVertices": 280,
+    "maximumRoundtripErrorMetres": 0.006082,
+    "geographyTest": "tests/unit/markets/domain.test.ts",
+    "checked": "2026-10-15"
+  },
+  "note": "State and Aland source/output geometry valid; source municipal unions match exactly. Internal municipal self-intersections are recorded above and are not embedded. Rings and vertex counts preserved; geographic acceptance passed."
+}

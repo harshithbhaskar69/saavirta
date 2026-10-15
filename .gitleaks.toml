@@ -1,0 +1,7 @@
+[extend]
+useDefault = true
+
+[[allowlists]]
+description = "Public weather-field identifier, not an authentication key"
+regexTarget = "secret"
+regexes = ['''^solarIrradianceWm2$''']

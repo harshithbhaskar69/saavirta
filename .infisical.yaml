@@ -1,0 +1,7 @@
+general:
+    domain: https://app.infisical.com
+secrets-management:
+    project-id: 8a91d7ba-bb84-4713-9b61-ecb597e25b45
+    default-environment: dev
+    mappings:
+        git-branch-to-environment: {}
