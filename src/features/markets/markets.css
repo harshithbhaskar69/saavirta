@@ -353,7 +353,7 @@
   margin: 8px 0 12px;
   font-variant-numeric: tabular-nums;
 }
-.market-metric-value span {
+.market-metric-unit {
   font-size: 16px;
 }
 .market-metric-summary {

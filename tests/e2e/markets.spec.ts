@@ -446,14 +446,12 @@ test("Days uses an in-page list and metric explanations disclose independently",
   await expect(details).toBeFocused();
   await expect(metric.locator(".market-metric-details")).toHaveCount(0);
 
-  const percent = page
-    .locator(".market-metrics article")
-    .filter({
-      has: page.getByRole("heading", {
-        name: "Consumption error (%)",
-        exact: true,
-      }),
-    });
+  const percent = page.locator(".market-metrics article").filter({
+    has: page.getByRole("heading", {
+      name: "Consumption error (%)",
+      exact: true,
+    }),
+  });
   await percent
     .getByRole("button", {
       name: "Methodology for Consumption error (%)",
@@ -464,19 +462,23 @@ test("Days uses an in-page list and metric explanations disclose independently",
     "100 × (actual demand − earlier forecast) ÷ earlier forecast",
   );
   await expect(percent.locator(".market-metric-value")).toHaveText(
-    "History collecting",
+    "Collecting history…",
   );
+  const history = percent.locator(".text-shimmer");
+  await expect(history).toHaveCSS("font-size", "23px");
+  await expect(history).toHaveCSS("animation-name", "none");
+  await page.emulateMedia({ reducedMotion: "no-preference" });
+  await expect(history).toHaveCSS("animation-name", "shimmer");
+  await page.emulateMedia({ reducedMotion: "reduce" });
   await expect(percent.getByText("Fresh inputs", { exact: true })).toHaveCount(
     0,
   );
-  const revision = page
-    .locator(".market-metrics article")
-    .filter({
-      has: page.getByRole("heading", {
-        name: "Wind forecast change over one hour",
-        exact: true,
-      }),
-    });
+  const revision = page.locator(".market-metrics article").filter({
+    has: page.getByRole("heading", {
+      name: "Wind forecast change over one hour",
+      exact: true,
+    }),
+  });
   await revision
     .getByRole("button", {
       name: "Methodology for Wind forecast change over one hour",

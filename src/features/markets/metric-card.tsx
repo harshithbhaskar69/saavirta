@@ -1,6 +1,7 @@
 "use client";
 import { CaretDownIcon } from "@phosphor-icons/react";
 import { InfoTip } from "@/components/info-tip";
+import { TextShimmer } from "@/components/motion/text-shimmer";
 import {
   Disclosure,
   DisclosureContent,
@@ -83,10 +84,11 @@ export function MetricCard({
       <p className="market-metric-value">
         {point?.value != null ? (
           <>
-            {number.format(point.value)} <span>{metric.unit}</span>
+            {number.format(point.value)}{" "}
+            <span className="market-metric-unit">{metric.unit}</span>
           </>
         ) : point?.missingReason === "history-collecting" ? (
-          "History collecting"
+          <TextShimmer>Collecting history…</TextShimmer>
         ) : (
           "Unavailable"
         )}
