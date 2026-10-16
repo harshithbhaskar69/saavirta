@@ -54,6 +54,7 @@ import { Logo } from "./logo";
 import { Conditions } from "./conditions";
 import { ImportantHours } from "./important-hours";
 import { LocationDialog } from "./location-dialog";
+import { PrivacyNotice } from "./privacy-notice";
 import { DailySummary } from "./daily-summary";
 import { Sky } from "./sky";
 import { WelcomeSky } from "./welcome-sky";
@@ -652,6 +653,9 @@ export function ForecastDesk({ mapKey }: { mapKey: string }) {
           <span className="sr-only">Säävirta</span>
         </a>
         <div className="header-end">
+          <a className="text-button sign-out" href="/cdn-cgi/access/logout">
+            Sign out
+          </a>
           <button
             className="icon-button"
             aria-label={`Switch to ${theme === "light" ? "dark" : "light"} appearance`}
@@ -1075,6 +1079,7 @@ export function ForecastDesk({ mapKey }: { mapKey: string }) {
         ) : (
           <span>Temperature in °C · Irradiance in W/m²</span>
         )}
+        <PrivacyNotice />
       </footer>
       <LocationDialog
         open={dialog !== null}

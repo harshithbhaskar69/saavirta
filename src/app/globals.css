@@ -253,6 +253,9 @@ input {
   align-items: center;
   gap: 20px;
 }
+.sign-out {
+  white-space: nowrap;
+}
 .icon-button {
   width: 44px;
   height: 44px;
@@ -993,6 +996,7 @@ td:not(:first-child) {
   border-top: 1px solid var(--border);
   padding: 18px 0 24px;
   display: flex;
+  flex-wrap: wrap;
   align-items: baseline;
   justify-content: space-between;
   gap: 16px;
@@ -1009,6 +1013,21 @@ td:not(:first-child) {
 }
 .source-details p {
   margin-top: 10px;
+}
+.privacy-notice {
+  flex-basis: 100%;
+}
+.privacy-copy {
+  max-width: 72ch;
+  font-size: 13px;
+  line-height: 1.7;
+}
+.privacy-copy p + p {
+  margin-top: 12px;
+}
+.privacy-copy a {
+  text-decoration: underline;
+  text-underline-offset: 3px;
 }
 .helper {
   font-size: 12px;

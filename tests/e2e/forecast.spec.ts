@@ -66,6 +66,77 @@ test.beforeEach(async ({ page }) => {
   await mockWeather(page);
 });
 
+test("privacy notice is keyboard accessible and Sign out navigates to Cloudflare", async ({
+  page,
+  isMobile,
+}, testInfo) => {
+  if (isMobile) await page.setViewportSize({ width: 320, height: 800 });
+  await page.emulateMedia({ colorScheme: "light", reducedMotion: "reduce" });
+  await page.goto(shared);
+  const originalUrl = page.url();
+  const signOut = page
+    .getByRole("banner")
+    .getByRole("link", { name: "Sign out" });
+  await expect(signOut).toBeVisible();
+  await expect(signOut).toHaveAttribute("href", "/cdn-cgi/access/logout");
+  const notice = page.getByRole("contentinfo").locator(".privacy-notice");
+  const summary = notice.locator("summary");
+  await expect(notice.locator(".privacy-copy")).toBeHidden();
+  await summary.focus();
+  await page.keyboard.press("Enter");
+  await expect(notice.locator(".privacy-copy")).toBeVisible();
+  await expect(notice).toContainText("Contact the person who invited you");
+  await expect(notice).toContainText(
+    "it does not remove saved locations or preferences",
+  );
+  await expect(page).toHaveURL(originalUrl);
+
+  for (const theme of ["light", "dark"]) {
+    if (theme === "dark")
+      await page
+        .getByRole("button", { name: "Switch to dark appearance" })
+        .click();
+    await expect(page.locator("html")).toHaveAttribute("data-theme", theme);
+    await signOut.scrollIntoViewIfNeeded();
+    const target = await signOut.boundingBox();
+    expect(target!.height).toBeGreaterThanOrEqual(44);
+    expect(target!.x).toBeGreaterThanOrEqual(0);
+    expect(target!.x + target!.width).toBeLessThanOrEqual(
+      page.viewportSize()!.width,
+    );
+    await page
+      .getByRole("banner")
+      .screenshot({ path: testInfo.outputPath(`header-${theme}.png`) });
+    await notice.scrollIntoViewIfNeeded();
+    const violations = await new AxeBuilder({ page })
+      .include(".app-header")
+      .include(".app-footer")
+      .analyze();
+    expect(violations.violations).toEqual([]);
+    await page
+      .getByRole("contentinfo")
+      .screenshot({ path: testInfo.outputPath(`privacy-${theme}.png`) });
+  }
+
+  await summary.focus();
+  await page.keyboard.press("Enter");
+  await expect(notice.locator(".privacy-copy")).toBeHidden();
+  await page.route("**/cdn-cgi/access/logout", (route) =>
+    route.fulfill({
+      contentType: "text/html",
+      body: "<main>Logout endpoint</main>",
+    }),
+  );
+  const navigation = page.waitForRequest(
+    (request) =>
+      new URL(request.url()).pathname === "/cdn-cgi/access/logout" &&
+      request.isNavigationRequest(),
+  );
+  await signOut.click();
+  expect((await navigation).resourceType()).toBe("document");
+  await expect(page).toHaveURL(/\/cdn-cgi\/access\/logout$/);
+});
+
 test("welcome actions keep contrast on hover and Choose on map opens the location picker", async ({
   page,
   isMobile,
