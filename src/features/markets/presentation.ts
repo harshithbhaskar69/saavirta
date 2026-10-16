@@ -32,7 +32,7 @@ export function deliveryAxis(domain: [number, number]) {
   };
 }
 
-// Only age the display; Go supplies the deadlines and all market calculations.
+// Only age the display; the server supplies deadlines and all market calculations.
 export function visibleDashboard(data: Dashboard, now: number): Dashboard {
   if (data.marketContext.demonstration) return data;
   function age<

@@ -10,6 +10,10 @@ Local release commands are `npm run build` then `node scripts/deploy.mjs`, after
 
 ## Collection and health
 
+Cloudflare Access protects the Worker and its assets across production and preview URLs. Invited users sign in with an email code for an eight-hour session. To invite or remove someone, edit the JSON array `ACCESS_ALLOWED_EMAILS` in Infisical prod and run the reviewed Terraform plan/apply. For immediate removal, also revoke that user's active Access sessions in Zero Trust. Do not add an Everyone or Bypass policy. The account's Access team and administrators remain platform-managed.
+
+Release probes use a dedicated service token from Infisical, including for `/api/health`. Deployment checks both anonymous denial and authenticated responses. Rotate the verification credential before its one-year expiry; replace its ID in Infisical and apply Terraform before revoking the previous token. There is no public health exception. An unauthenticated API client receives an Access challenge or denial rather than market data.
+
 The singleton collector's schedule and quotas survive Worker deployments. Development collection is disabled by default. Never enable two collectors with the same Fingrid key. API requests cannot cause market refreshes. A cold database returns unavailable/partial sections while scheduled collection warms.
 
 Inspect structured Worker logs for `market-collection`, `market-collection-failed`, `market-collector-unavailable` and `market-request-failed`. Logs include dataset, duration or a safe issue code, never coordinates, tokens or raw provider errors. Check dashboard `lastSuccessfulCheck`, coverage and freshness when diagnosing a source outage. Provider downtime does not disable weather. `/api/health` checks process availability; it is not evidence that every provider is healthy.

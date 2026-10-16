@@ -1,21 +1,17 @@
 import { spawnSync } from "node:child_process";
 import { pathToFileURL } from "node:url";
-// This build-only exception expires; build-safety.ts separately excludes the package from every runtime bundle.
-const accepted = "https://github.com/advisories/GHSA-vfj7-8cjw-p6xm";
-export function checkAudit(audit, now = Date.now()) {
-  if (audit.error || !audit.vulnerabilities)
+export function checkAudit(audit) {
+  if (
+    !audit ||
+    audit.error ||
+    !audit.vulnerabilities ||
+    typeof audit.vulnerabilities !== "object" ||
+    Array.isArray(audit.vulnerabilities)
+  )
     throw new Error("Dependency audit failed; release blocked");
-  const findings = Object.values(audit.vulnerabilities).flatMap((v) =>
-    v.via.filter((item) => typeof item !== "string"),
-  );
-  const unexpected = findings.filter(
-    (v) => v.url !== accepted || now >= Date.parse("2026-11-01"),
-  );
-  if (unexpected.length)
-    throw new Error(
-      "Unaccepted or expired dependency advisory; release blocked",
-    );
-  return findings.length;
+  if (Object.keys(audit.vulnerabilities).length)
+    throw new Error("Dependency advisory found; release blocked");
+  return 0;
 }
 if (
   process.argv[1] &&
@@ -28,8 +24,8 @@ if (
   } catch {
     throw new Error("Dependency audit did not return valid results");
   }
-  const count = checkAudit(audit);
-  console.log(
-    `Dependency audit: ${count} known build-only advisory; no other advisories. Exception expires 2026-11-01.`,
-  );
+  checkAudit(audit);
+  if (result.status !== 0)
+    throw new Error("Dependency audit command failed; release blocked");
+  console.log("Dependency audit: no known advisories; no exceptions.");
 }

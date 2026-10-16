@@ -1,6 +1,12 @@
-import { chromium } from "@playwright/test";
+import assert from "node:assert/strict";
+import { chromium, expect } from "@playwright/test";
 import { mkdir, writeFile } from "node:fs/promises";
+
 const base = process.env.PLAYWRIGHT_BASE_URL ?? "http://127.0.0.1:3001";
+assert.ok(
+  ["127.0.0.1", "localhost"].includes(new URL(base).hostname),
+  "Use the local built Worker; this script makes live weather requests",
+);
 const directory = ".impeccable/review";
 await mkdir(directory, { recursive: true });
 const browser = await chromium.launch({ channel: "chrome" });
@@ -25,79 +31,49 @@ try {
       if (message.type() === "error") errors.push(message.text());
     });
     await page.goto(base);
-    await page
-      .getByRole("heading", { name: "The outlook for the hours ahead." })
-      .waitFor();
-    await page.locator(".map-surface[data-ready=true]").waitFor();
+    await expect(
+      page.getByRole("button", { name: "Search anywhere", exact: true }),
+    ).toBeVisible();
     await page.evaluate(() => document.fonts.ready);
     await page.screenshot({
       path: `${directory}/welcome-${device}.png`,
       fullPage: true,
     });
-    await page.getByRole("link", { name: /Rotterdam/ }).click();
-    await page.getByRole("heading", { name: "Weather drivers" }).waitFor();
-    await page.locator(".map-surface").scrollIntoViewIfNeeded();
-    await page.locator(".map-surface[data-ready=true]").waitFor();
-    await page.waitForTimeout(200);
-    await page.evaluate(() => window.scrollTo(0, 0));
-    await page.screenshot({
-      path: `${directory}/live-${device}.png`,
-      fullPage: true,
-    });
     await page
-      .getByRole("button", { name: "Expand temperature chart" })
+      .getByRole("button", { name: "Choose on map", exact: true })
       .click();
-    await page.getByRole("button", { name: "Compare", exact: true }).click();
-    await page.getByRole("slider").waitFor();
-    await page.screenshot({
-      path: `${directory}/detail-live-${device}.png`,
-      fullPage: true,
-    });
-    const cursors = await page
-      .locator(".recharts-reference-line line")
-      .evaluateAll((lines) =>
-        lines.map((line) => Number(line.getAttribute("x1"))),
-      );
-    const tickColor = await page
-      .locator("text.recharts-cartesian-axis-tick-value")
-      .first()
-      .evaluate((element) => getComputedStyle(element).fill);
-    await page.getByRole("button", { name: "Close hourly weather" }).click();
-    await page.getByRole("link", { name: "Map", exact: true }).click();
-    await page
-      .locator(".geo-map.expanded .map-surface[data-ready=true]")
-      .waitFor();
+    const map = page.getByRole("dialog", { name: "Choose on map" });
+    await expect(map.locator(".map-surface")).toHaveAttribute(
+      "data-ready",
+      "true",
+    );
     await page.screenshot({
       path: `${directory}/map-${device}.png`,
       fullPage: true,
     });
-    await page.goto(
-      `${base}/?lat=12.3119&lon=76.6581&name=Mysuru&region=Karnataka&country=India&countryCode=IN&view=map`,
-    );
-    await page.getByRole("heading", { name: "Mysuru", exact: true }).waitFor();
-    await page
-      .locator(".geo-map.expanded .map-surface[data-ready=true]")
-      .waitFor();
-    await page
-      .getByRole("button", { name: "Open forecast", exact: true })
-      .waitFor();
-    await page.evaluate(() => document.fonts.ready);
+    await page.keyboard.press("Escape");
+    await page.getByRole("link", { name: /Rotterdam/ }).click();
+    await expect(
+      page.getByRole("heading", { name: "Daily summary", exact: true }),
+    ).toBeVisible({ timeout: 30000 });
+    const slider = page.getByRole("slider", { name: "Forecast hour" });
+    await slider.focus();
+    await page.keyboard.press("Home");
+    await page.keyboard.press("ArrowRight");
+    await expect(slider).toHaveAttribute("aria-valuenow", "1");
     await page.screenshot({
-      path: `${directory}/mysuru-${device}.png`,
+      path: `${directory}/live-${device}.png`,
       fullPage: true,
     });
+    await page.locator("#hourly").scrollIntoViewIfNeeded();
+    await page.screenshot({ path: `${directory}/detail-live-${device}.png` });
     await page
       .getByRole("button", { name: "Switch to dark appearance" })
       .click();
-    await page.waitForTimeout(500);
-    await page.screenshot({
-      path: `${directory}/mysuru-${device}-dark.png`,
-      fullPage: true,
-    });
-    await page
-      .getByRole("button", { name: "Open forecast", exact: true })
-      .click();
-    await page.getByRole("heading", { name: "Weather drivers" }).waitFor();
+    await expect(page.locator("body")).toHaveCSS(
+      "background-color",
+      "rgb(18, 18, 18)",
+    );
     await page.screenshot({
       path: `${directory}/overview-${device}-dark.png`,
       fullPage: true,
@@ -106,9 +82,6 @@ try {
       device,
       liveProvider: true,
       errors,
-      sharedCursorAligned:
-        cursors.length === 2 && Math.abs(cursors[0] - cursors[1]) < 0.5,
-      tickColor,
       overflow: await page.evaluate(
         () => document.documentElement.scrollWidth > innerWidth,
       ),
@@ -123,9 +96,5 @@ await writeFile(
   JSON.stringify(evidence, null, 2),
 );
 console.log(JSON.stringify(evidence));
-if (
-  evidence.some(
-    (row) => row.errors.length || row.overflow || !row.sharedCursorAligned,
-  )
-)
+if (evidence.some((row) => row.errors.length || row.overflow))
   process.exitCode = 1;

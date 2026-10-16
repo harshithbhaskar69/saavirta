@@ -1,4 +1,5 @@
 import handler from "vinext/server/fetch-handler";
+import { contentSecurityPolicy, secureResponse } from "./lib/security-headers";
 export * from "vinext/server/fetch-handler";
 export { ProviderBudget } from "./lib/provider-budget";
 export { MarketCollector } from "./server/markets/collector";
@@ -11,6 +12,14 @@ export default {
     await env.MARKET_COLLECTOR.getByName("fi").wake();
   },
   async fetch(request: Request, env: Cloudflare.Env, ctx: ExecutionContext) {
+    const policy = contentSecurityPolicy(
+      crypto.randomUUID().replaceAll("-", ""),
+      import.meta.env.DEV,
+    );
+    const headers = new Headers(request.headers);
+    // Vinext propagates this server-generated nonce to its streamed scripts.
+    headers.set("Content-Security-Policy", policy);
+    request = new Request(request, { headers });
     if (
       new URL(request.url).pathname.startsWith("/api/") &&
       new URL(request.url).pathname !== "/api/health"
@@ -19,46 +28,43 @@ export default {
         if (
           !(await env.PROVIDER_BUDGET?.getByName("public-api").reserve("api"))
         ) {
-          return Response.json(
+          return secureResponse(
+            Response.json(
+              {
+                error: {
+                  code: "RATE_LIMIT",
+                  message: "Too many requests. Please try again in a minute.",
+                  retryable: true,
+                },
+              },
+              {
+                status: 429,
+                headers: { "Retry-After": "60", "Cache-Control": "no-store" },
+              },
+            ),
+            policy,
+          );
+        }
+      } catch {
+        return secureResponse(
+          Response.json(
             {
               error: {
-                code: "RATE_LIMIT",
-                message: "Too many requests. Please try again in a minute.",
+                code: "UNAVAILABLE",
+                message: "The service is temporarily unavailable.",
                 retryable: true,
               },
             },
             {
-              status: 429,
+              status: 503,
               headers: { "Retry-After": "60", "Cache-Control": "no-store" },
             },
-          );
-        }
-      } catch {
-        return Response.json(
-          {
-            error: {
-              code: "UNAVAILABLE",
-              message: "The service is temporarily unavailable.",
-              retryable: true,
-            },
-          },
-          {
-            status: 503,
-            headers: { "Retry-After": "60", "Cache-Control": "no-store" },
-          },
+          ),
+          policy,
         );
       }
     }
     const response = await handler.fetch(request, env, ctx);
-    const result = new Response(response.body, response);
-    result.headers.set("X-Content-Type-Options", "nosniff");
-    result.headers.set("Referrer-Policy", "strict-origin-when-cross-origin");
-    result.headers.set("X-Frame-Options", "DENY");
-    result.headers.set(
-      "Permissions-Policy",
-      "camera=(), microphone=(), payment=(), geolocation=(self)",
-    );
-    result.headers.set("Strict-Transport-Security", "max-age=31536000");
-    return result;
+    return secureResponse(response, policy);
   },
 };

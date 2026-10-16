@@ -2,7 +2,18 @@ import assert from "node:assert/strict";
 import { readFileSync, writeFileSync } from "node:fs";
 import { pathToFileURL } from "node:url";
 
-export function productionConfig(built, inputs) {
+export function productionConfig(built, inputs, settings = {}) {
+  const weatherMode = settings.WEATHER_PROVIDER_MODE ?? "public";
+  assert.ok(
+    ["public", "customer"].includes(weatherMode),
+    "Invalid WEATHER_PROVIDER_MODE",
+  );
+  if (weatherMode === "customer")
+    assert.ok(
+      typeof settings.OPEN_METEO_API_KEY === "string" &&
+        settings.OPEN_METEO_API_KEY.trim().length > 0,
+      "Customer weather mode requires OPEN_METEO_API_KEY",
+    );
   assert.match(inputs.account_id, /^[a-f0-9]{32}$/);
   assert.match(inputs.weather_cache_id, /^[a-f0-9]{32}$/);
   assert.equal(inputs.name, "www");
@@ -32,7 +43,7 @@ export function productionConfig(built, inputs) {
   config.triggers = { crons: ["*/5 * * * *"] };
   config.vars = {
     PUBLIC_MAPTILER_KEY: "",
-    WEATHER_PROVIDER_MODE: "public",
+    WEATHER_PROVIDER_MODE: weatherMode,
     APP_ENV: "production",
     MARKET_MODE: "live",
     COLLECTOR_ENABLED: "true",

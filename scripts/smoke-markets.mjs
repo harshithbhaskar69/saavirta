@@ -1,4 +1,5 @@
 import assert from "node:assert/strict";
+import { accessHeaders } from "./access-headers.mjs";
 import {
   contextSchema,
   dashboardSchema,
@@ -6,11 +7,46 @@ import {
 
 const base = process.env.SMOKE_BASE_URL;
 assert.ok(base?.startsWith("https://"), "Set the deployed HTTPS site");
+const headers = accessHeaders(process.env);
+for (const path of [
+  "/",
+  "/api/health",
+  "/api/weather?lat=60.17&lon=24.94",
+  "/api/v1/market-context",
+]) {
+  const response = await fetch(`${base}${path}`, {
+    redirect: "manual",
+    signal: AbortSignal.timeout(10000),
+  });
+  assert.ok(
+    [302, 401, 403].includes(response.status),
+    `Access must protect ${path}`,
+  );
+  if (response.status === 302) {
+    const login = new URL(response.headers.get("location"));
+    assert.equal(login.protocol, "https:");
+    assert.ok(login.hostname.endsWith(".cloudflareaccess.com"));
+  }
+  await response.body?.cancel();
+}
+const html = await fetch(base, {
+  headers,
+  redirect: "error",
+  signal: AbortSignal.timeout(20000),
+});
+assert.equal(html.status, 200);
+assert.equal(html.headers.get("cache-control"), "private, no-store");
+assert.match(
+  html.headers.get("content-security-policy") ?? "",
+  /script-src 'self' 'nonce-[a-zA-Z0-9]+' 'strict-dynamic'/,
+);
+await html.body?.cancel();
 const point = { latitude: 60.1699, longitude: 24.9384 };
 async function post(path, input) {
   const response = await fetch(`${base}${path}`, {
     method: "POST",
-    headers: { "Content-Type": "application/json" },
+    headers: { ...headers, "Content-Type": "application/json" },
+    redirect: "error",
     body: JSON.stringify(input),
     signal: AbortSignal.timeout(20000),
   });
@@ -44,5 +80,5 @@ assert.ok(
   "Authenticated fundamentals must be available",
 );
 console.log(
-  "Hosted market smoke: authoritative FI context, real fundamentals, schema and privacy headers passed.",
+  "Hosted smoke: Access gate, CSP, private HTML, authoritative FI context, real fundamentals and schema passed.",
 );

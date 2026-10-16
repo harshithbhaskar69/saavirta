@@ -7,6 +7,8 @@
 
 [Live application](https://www.saavirta.workers.dev) · [Build and deploy](https://github.com/harshithbhaskar69/saavirta/actions/workflows/release.yml)
 
+The hosted application requires an invitation. Sign in with the email code from Cloudflare Access; there is no public registration. The current deployment is a non-commercial evaluation.
+
 Weather and electricity-market context for an electricity retailer. Select a point worldwide to inspect hourly temperature, irradiance, wind and precipitation. For Finland, the **Delivery desk** aligns national demand, generation forecasts and collected forecast changes by delivery period.
 
 The retailer can see when forecast demand is less covered by wind and solar, how the outlook changed during the last hour, and how completed demand compares with a forecast collected approximately 24 hours earlier. These are transparent national indicators, not portfolio volumes, trading recommendations or price predictions. Selected-point weather provides local context; it is not a Finland-wide weather estimate.
@@ -15,7 +17,8 @@ The retailer can see when forecast demand is less covered by wind and solar, how
 
 ```mermaid
 flowchart LR
-  Browser --> Worker[Cloudflare Worker · React / vinext / TypeScript]
+  Browser --> Access[Cloudflare Access · invited email login]
+  Access --> Worker[Cloudflare Worker · React / vinext / TypeScript]
   Worker --> Weather[Open-Meteo]
   Worker --> KV[Weather KV cache]
   Worker --> Budget[Persistent request budgets]
@@ -65,7 +68,7 @@ Install Chrome with `npx playwright install chrome`. CI checks types, lint, unit
 
 ## Deployment
 
-[www.saavirta.workers.dev](https://www.saavirta.workers.dev) runs entirely on Cloudflare. Terraform owns D1, weather KV and private R2 state. Wrangler publishes the Worker, bindings, Durable Objects and Cron configuration. GitHub Actions authenticates to Infisical through OIDC; only provider keys become Worker secrets. No container image or registry is needed.
+[www.saavirta.workers.dev](https://www.saavirta.workers.dev) runs entirely on Cloudflare. Terraform owns D1, weather KV, Access policies and private R2 state. Wrangler publishes the Worker, bindings, Durable Objects and Cron configuration. GitHub Actions authenticates to Infisical through OIDC; only provider keys become Worker secrets. No container image or registry is needed.
 
 [Operations and recovery](docs/markets/operations.md) · [Terraform](infra/README.md) · [Secrets and OIDC](docs/markets/secrets.md) · [Verification](docs/markets/verification.md) · [Release gates](docs/markets/release-gates.md) · [Security assessment](docs/markets/security.md)
 

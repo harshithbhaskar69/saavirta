@@ -119,6 +119,19 @@ export async function terraformEnvironment(secrets) {
     secrets,
     `accounts/${account}/workers/subdomain`,
   );
+  const { result: workers } = await cloudflare(
+    secrets,
+    `accounts/${account}/workers/workers`,
+  );
+  const worker = workers.find((item) => item.name === "www");
+  if (
+    !worker?.id ||
+    !secrets.ACCESS_ALLOWED_EMAILS ||
+    !secrets.ACCESS_SERVICE_TOKEN_ID
+  )
+    throw new Error(
+      "Configure the existing Worker and Access settings in Infisical prod first",
+    );
   const environment = {
     ...process.env,
     CLOUDFLARE_API_TOKEN: secrets.CLOUDFLARE_API_TOKEN,
@@ -129,6 +142,9 @@ export async function terraformEnvironment(secrets) {
     AWS_REGION: "auto",
     TF_VAR_cloudflare_account_id: account,
     TF_VAR_workers_subdomain: domain.subdomain,
+    TF_VAR_access_worker_id: worker.id,
+    TF_VAR_access_allowed_emails: secrets.ACCESS_ALLOWED_EMAILS,
+    TF_VAR_access_service_token_id: secrets.ACCESS_SERVICE_TOKEN_ID,
     TF_IN_AUTOMATION: "1",
     TF_INPUT: "0",
   };

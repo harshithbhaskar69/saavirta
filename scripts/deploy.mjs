@@ -9,10 +9,12 @@ import {
   account,
 } from "./cloud-auth.mjs";
 import { productionConfig } from "./prepare-worker-deploy.mjs";
+import { accessHeaders } from "./access-headers.mjs";
 
 try {
   const secrets = await productionSecrets(),
     environment = await terraformEnvironment(secrets);
+  const headers = accessHeaders(secrets);
   const terraform = process.env.TERRAFORM_BIN ?? "terraform";
   const tf = (args, capture = false) =>
     run(terraform, ["-chdir=infra", ...args], { env: environment, capture });
@@ -22,6 +24,7 @@ try {
   const config = productionConfig(
     JSON.parse(readFileSync("dist/server/wrangler.json", "utf8")),
     inputs,
+    secrets,
   );
   const runtime = runtimeSecrets(secrets);
   config.secrets.required = Object.keys(runtime);
@@ -58,6 +61,8 @@ try {
   for (let attempt = 0; attempt < 12; attempt++) {
     try {
       const response = await fetch(`${inputs.workers_dev_url}/api/health`, {
+        headers,
+        redirect: "error",
         signal: AbortSignal.timeout(10000),
       });
       if (
@@ -73,9 +78,16 @@ try {
     await setTimeout(5000);
   }
   if (!healthy)
-    throw new Error("Worker deployed but public health verification failed");
+    throw new Error(
+      "Worker deployed but authenticated health verification failed",
+    );
   run("node", ["scripts/smoke-markets.mjs"], {
-    env: { ...process.env, SMOKE_BASE_URL: inputs.workers_dev_url },
+    env: {
+      ...process.env,
+      SMOKE_BASE_URL: inputs.workers_dev_url,
+      ACCESS_CLIENT_ID: secrets.ACCESS_CLIENT_ID,
+      ACCESS_CLIENT_SECRET: secrets.ACCESS_CLIENT_SECRET,
+    },
   });
   console.log(`Live: ${inputs.workers_dev_url}`);
 } catch (error) {

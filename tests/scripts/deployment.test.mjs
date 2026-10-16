@@ -1,6 +1,7 @@
 import assert from "node:assert/strict";
 import { test } from "node:test";
 import { productionConfig } from "../../scripts/prepare-worker-deploy.mjs";
+import { accessHeaders } from "../../scripts/access-headers.mjs";
 
 const built = {
   main: "index.js",
@@ -39,4 +40,42 @@ test("deployment refuses unprovisioned resource identifiers", () => {
     assert.throws(() =>
       productionConfig(built, { ...inputs, market_database_id }),
     );
+});
+test("commercial weather configuration requires a customer key and never writes it into vars", () => {
+  assert.equal(
+    productionConfig(built, inputs).vars.WEATHER_PROVIDER_MODE,
+    "public",
+  );
+  assert.throws(() =>
+    productionConfig(built, inputs, { WEATHER_PROVIDER_MODE: "invalid" }),
+  );
+  assert.throws(() =>
+    productionConfig(built, inputs, { WEATHER_PROVIDER_MODE: "customer" }),
+  );
+  const settings = {
+    WEATHER_PROVIDER_MODE: "customer",
+    OPEN_METEO_API_KEY: "test-only-key",
+  };
+  const config = productionConfig(built, inputs, settings);
+  assert.equal(config.vars.WEATHER_PROVIDER_MODE, "customer");
+  assert.equal(config.vars.OPEN_METEO_API_KEY, undefined);
+});
+test("deployment probes require both credentials and reject header injection", () => {
+  assert.throws(() => accessHeaders({}));
+  assert.throws(() =>
+    accessHeaders({
+      ACCESS_CLIENT_ID: "test",
+      ACCESS_CLIENT_SECRET: "bad\nvalue",
+    }),
+  );
+  assert.deepEqual(
+    accessHeaders({
+      ACCESS_CLIENT_ID: "test",
+      ACCESS_CLIENT_SECRET: "test-secret",
+    }),
+    {
+      "CF-Access-Client-Id": "test",
+      "CF-Access-Client-Secret": "test-secret",
+    },
+  );
 });

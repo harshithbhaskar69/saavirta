@@ -199,7 +199,7 @@ components:
 
 A calm, precise analysis surface that answers in the order an electricity retailer asks: what each local day looks like, then which hours matter, then where the point is. Logo-derived charcoal and off-white neutrals, measured typography and hairline structure leave room for continuous weather data. On first visit, rotating metric names explain coverage and a moving city strip opens real forecasts. Inside the workspace, the sky above the place pictures its modelled weather. There is no card grid.
 
-This document records the implemented local application. The Forecast Desk direction was selected on 2026-10-13. The 13 October retailer review replaced the six-card overview and the hourly dialog with a daily summary table and inline hourly analysis; the 14 October review added the sky band, analysis tiles and the horizon beside the summary. [retailer-overview.md](docs/retailer-overview.md) records why. Values come from [globals.css](src/app/globals.css) and [components](src/components/). Nothing has been deployed.
+This document records the application deployed at https://www.saavirta.workers.dev. The Forecast Desk direction was selected on 2026-10-13. The 13 October retailer review replaced the six-card overview and the hourly dialog with a daily summary table and inline hourly analysis; the 14 October review added the sky band, analysis tiles and the horizon beside the summary. [retailer-overview.md](docs/retailer-overview.md) records why. Values come from [globals.css](src/app/globals.css) and [components](src/components/).
 
 **Key Characteristics:**
 

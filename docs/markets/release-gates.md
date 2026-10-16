@@ -8,7 +8,8 @@
 | Forecast archive | D1 retains original observed snapshot IDs, collection times and normalized periods | Errors need a qualifying forecast approximately 24 hours earlier; missing history stays unavailable |
 | Cloudflare runtime | Worker APIs, D1 transactions and Durable Object scheduling have local and hosted verification | Keep one collector per provider key and monitor quotas, storage and CPU |
 | Recovery | Hosted D1 export restored into an isolated database with ordered record checksums | Time Travel and portable export are different recovery paths; verify both when changing storage |
-| Dependencies | Runtime build guard excludes the known braces build-tool advisory; no additional advisory accepted | Exception expires 2026-11-01; any new or expired advisory blocks release |
+| Dependencies | The vulnerable build-time glob chain is removed; the audit accepts no advisory exceptions | A new advisory or failed audit blocks release; verify the scoped adapter on plugin updates |
+| Access | Cloudflare Access protects the Worker with invited-email login and a separate release-verification service credential | Invitations and token rotation are managed through Infisical and Terraform |
 | Weather | Current public endpoint is configured for non-commercial use | Commercial operation and historical/model-run access require appropriate entitlements |
 
 [Verification](verification.md) records completed checks; [operations](operations.md) describes ongoing responsibilities. Synthetic browser/demo data is explicitly labelled and never a live-provider fallback.

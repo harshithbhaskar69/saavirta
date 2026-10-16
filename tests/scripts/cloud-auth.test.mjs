@@ -24,6 +24,7 @@ test("only provider credentials reach Worker bindings", () => {
     ENTSOE_TOKEN: "test-entsoe",
     CLOUDFLARE_API_TOKEN: "must-stay-in-deployer",
     NLS_API_KEY: "offline-only",
+    ACCESS_CLIENT_SECRET: "deployment-probe-only",
   };
   assert.deepEqual(runtimeSecrets(input), {
     FINGRID_API_KEY: "test-fingrid",

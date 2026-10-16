@@ -1,9 +1,15 @@
 // Live integration check against the running Worker. Does not mock the provider.
 import assert from "node:assert/strict";
+import { accessHeaders } from "./access-headers.mjs";
 const base = process.env.SMOKE_BASE_URL ?? "http://127.0.0.1:3001";
+const headers = ["127.0.0.1", "localhost"].includes(new URL(base).hostname)
+  ? {}
+  : accessHeaders(process.env);
 async function get(path, options) {
   const response = await fetch(`${base}${path}`, {
     ...options,
+    headers: { ...headers, ...options?.headers },
+    redirect: "error",
     signal: AbortSignal.timeout(20_000),
   });
   return { response, body: await response.json() };
