@@ -35,7 +35,11 @@ const html = await fetch(base, {
   signal: AbortSignal.timeout(20000),
 });
 assert.equal(html.status, 200);
-assert.equal(html.headers.get("cache-control"), "private, no-store");
+// The edge may change other directives; no-store must remain enforced.
+assert.match(
+  html.headers.get("cache-control") ?? "",
+  /(?:^|,)\s*no-store\s*(?:,|$)/i,
+);
 assert.match(
   html.headers.get("content-security-policy") ?? "",
   /script-src 'self' 'nonce-[a-zA-Z0-9]+' 'strict-dynamic'/,
@@ -51,7 +55,10 @@ async function post(path, input) {
     signal: AbortSignal.timeout(20000),
   });
   assert.equal(response.status, 200, `Hosted ${path} must be usable`);
-  assert.equal(response.headers.get("cache-control"), "no-store");
+  assert.match(
+    response.headers.get("cache-control") ?? "",
+    /(?:^|,)\s*no-store\s*(?:,|$)/i,
+  );
   return response.json();
 }
 const context = contextSchema.parse(
