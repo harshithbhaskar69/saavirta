@@ -334,7 +334,9 @@ test("welcome motion keeps the heading steady and city shortcuts slow on hover",
 
   // Use real pointer coordinates: the strip intentionally keeps moving on hover.
   await cities.scrollIntoViewIfNeeded();
-  const shortcut = await cities.locator("a").evaluateAll((links) => {
+  // At narrow widths the strip can briefly have no fully visible link.
+  const shortcutHandle = await page.waitForFunction(() => {
+    const links = [...document.querySelectorAll(".welcome-cities a")];
     const link = links.find((link) => {
       const box = link.getBoundingClientRect();
       const clip = link.closest(".infinite-slider")!.getBoundingClientRect();
@@ -344,7 +346,8 @@ test("welcome motion keeps the heading steady and city shortcuts slow on hover",
         box.top >= Math.max(clip.top + 8, 16) &&
         box.bottom <= Math.min(clip.bottom - 8, innerHeight - 16)
       );
-    })!;
+    });
+    if (!link) return null;
     const box = link.getBoundingClientRect();
     return {
       name: link.querySelector(".city-name")!.textContent!.trim(),
@@ -352,6 +355,8 @@ test("welcome motion keeps the heading steady and city shortcuts slow on hover",
       y: box.y + box.height / 2,
     };
   });
+  const shortcut = (await shortcutHandle.jsonValue())!;
+  await shortcutHandle.dispose();
   if (isMobile) await page.touchscreen.tap(shortcut.x, shortcut.y);
   else await page.mouse.click(shortcut.x, shortcut.y);
   await expect(
