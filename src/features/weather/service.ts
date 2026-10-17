@@ -97,8 +97,7 @@ export function createWeatherService(
   clock: () => number = Date.now,
   log: (event: string) => void = () => {},
 ) {
-  // Only completed JSON values cross requests; Response bodies remain with their owner.
-  const inflight = new Map<string, Promise<Snapshot>>();
+  // Share completed snapshots through KV; a canceled request can strand its promises.
   const failures = new Map<string, { until: number; error: unknown }>();
   return async (
     point: Point,
@@ -132,25 +131,15 @@ export function createWeatherService(
       throw failure.error;
     }
     try {
-      let pending = privatePoint ? undefined : inflight.get(key);
-      if (!pending) {
-        pending = (async () => {
-          const fresh = await load(point);
-          if (!privatePoint) {
-            try {
-              await cache.put(key, fresh);
-            } catch {
-              log("cache_write_failed");
-            }
-          }
-          return fresh;
-        })();
-        if (!privatePoint) {
-          inflight.set(key, pending);
-          void pending.finally(() => inflight.delete(key)).catch(() => {});
+      const fresh = await load(point);
+      if (!privatePoint) {
+        try {
+          await cache.put(key, fresh);
+        } catch {
+          log("cache_write_failed");
         }
       }
-      return forecastFromSnapshot(await pending, horizon, clock());
+      return forecastFromSnapshot(fresh, horizon, clock());
     } catch (error) {
       if (!privatePoint) {
         if (failures.size > 200) failures.clear();

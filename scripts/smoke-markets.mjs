@@ -45,6 +45,16 @@ assert.match(
   /script-src 'self' 'nonce-[a-zA-Z0-9]+' 'strict-dynamic'/,
 );
 await html.body?.cancel();
+const weather = await fetch(
+  `${base}/api/weather?lat=60.1695&lon=24.9354&horizon=48h`,
+  { headers, redirect: "error", signal: AbortSignal.timeout(20000) },
+);
+assert.equal(weather.status, 200, "Hosted Helsinki weather must be usable");
+const forecast = await weather.json();
+assert.equal(forecast.hourly.length, 48);
+assert.equal(forecast.location.timezone, "Europe/Helsinki");
+assert.ok(forecast.coverage.temperature > 0);
+assert.ok(forecast.coverage.solar > 0);
 const point = { latitude: 60.1699, longitude: 24.9384 };
 async function post(path, input) {
   const response = await fetch(`${base}${path}`, {
@@ -87,5 +97,5 @@ assert.ok(
   "Authenticated fundamentals must be available",
 );
 console.log(
-  "Hosted smoke: Access gate, CSP, private HTML, authoritative FI context, real fundamentals and schema passed.",
+  "Hosted smoke: Access gate, CSP, private HTML, Helsinki weather, authoritative FI context, real fundamentals and schema passed.",
 );

@@ -169,7 +169,6 @@ export function createBaselineService(
   transport: typeof fetch = fetch,
   log: (event: string) => void = () => {},
 ) {
-  const inflight = new Map<string, Promise<unknown>>();
   const url = (api: string, path: string, params: Record<string, string>) => {
     const customer = mode === "customer" && apiKey;
     const target = new URL(
@@ -189,7 +188,7 @@ export function createBaselineService(
     timeformat: "unixtime",
     timezone: "auto",
   });
-  // KV holds completed JSON only; concurrent misses in one isolate share a request.
+  // Keep pending work request-local so an ended invocation cannot block later callers.
   async function cached<T>(
     key: string | null,
     ttlSeconds: number,
@@ -202,20 +201,13 @@ export function createBaselineService(
     } catch {
       log("baseline_cache_read_failed");
     }
-    let pending = inflight.get(key) as Promise<T> | undefined;
-    if (!pending) {
-      pending = load().then(async (result) => {
-        try {
-          await cache.put(key, result, ttlSeconds);
-        } catch {
-          log("baseline_cache_write_failed");
-        }
-        return result;
-      });
-      inflight.set(key, pending);
-      void pending.finally(() => inflight.delete(key)).catch(() => {});
+    const result = await load();
+    try {
+      await cache.put(key, result, ttlSeconds);
+    } catch {
+      log("baseline_cache_write_failed");
     }
-    return pending;
+    return result;
   }
   const loadNormals = async (point: Point, now: number) => {
     const today = isoDate(now);

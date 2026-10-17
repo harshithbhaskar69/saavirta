@@ -298,20 +298,6 @@ describe("cache lifecycle", () => {
     clock = cached.retrievedAt + MAX_AGE_MS + 1;
     await expect(service(point, "24h", "public")).rejects.toThrow();
   });
-  it("deduplicates simultaneous refreshes within an isolate", async () => {
-    const cache = { get: vi.fn(async () => null), put: vi.fn() },
-      load = vi.fn(async () => {
-        await new Promise((resolve) => setTimeout(resolve, 5));
-        return snapshot(now);
-      });
-    const service = createWeatherService(cache, load, () => now);
-    await Promise.all([
-      service(point, "24h", "public"),
-      service(point, "48h", "public"),
-    ]);
-    expect(load).toHaveBeenCalledTimes(1);
-    expect(cache.put).toHaveBeenCalledTimes(1);
-  });
   it("returns a fresh result when cache storage fails and bypasses all caches for private points", async () => {
     const cache = {
         get: vi.fn(async () => null),
