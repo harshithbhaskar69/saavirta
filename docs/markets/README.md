@@ -1,6 +1,6 @@
 # Finnish Energy Markets
 
-The Delivery desk aligns Finnish demand, generation plans, wind and solar forecasts, published prices and selected-point weather by delivery period. Live fundamentals come from Fingrid. ENTSO-E prices are independently gated by access and redistribution permission.
+The Delivery desk aligns Finnish demand, generation plans, wind and solar forecasts, published prices and selected-point weather by delivery period. Live fundamentals come from Fingrid and published FI day-ahead prices come from ENTSO-E. Production price collection, display and CSV export are enabled following the operator's confirmation of reuse permission; the deployment switches remain explicit and default off for other environments.
 
 ## Ownership
 

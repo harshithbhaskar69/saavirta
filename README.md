@@ -9,7 +9,7 @@
 
 The hosted application requires an invitation. Sign in with the email code from Cloudflare Access; there is no public registration. The current deployment is a non-commercial evaluation.
 
-Weather and electricity-market context for an electricity retailer. Select a point worldwide to inspect hourly temperature, irradiance, wind and precipitation. For Finland, the **Delivery desk** aligns national demand, generation forecasts and collected forecast changes by delivery period.
+Weather and electricity-market context for an electricity retailer. Select a point worldwide to inspect hourly temperature, irradiance, wind and precipitation. For Finland, the **Delivery desk** aligns national demand, generation forecasts, collected forecast changes and published day-ahead prices by delivery period.
 
 The retailer can see when forecast demand is less covered by wind and solar, how the outlook changed during the last hour, and how completed demand compares with a forecast collected approximately 24 hours earlier. These are transparent national indicators, not portfolio volumes, trading recommendations or price predictions. Selected-point weather provides local context; it is not a Finland-wide weather estimate.
 
@@ -26,12 +26,12 @@ flowchart LR
   Cron[Cron watchdog] --> Collector[Durable Object · scheduled collector]
   Collector --> D1
   Collector --> Fingrid
-  Collector -. gated .-> ENTSOE[ENTSO-E]
+  Collector --> ENTSOE[ENTSO-E]
 ```
 
 One Worker serves the app and APIs. A Durable Object serializes market collection and persists provider quotas; browser requests only read stored market data. D1 retains 30 days of normalized periods and immutable forecast snapshots. React shares a UTC cursor across charts; TypeScript on the server owns market calculations.
 
-**Data:** live fundamentals use authenticated Fingrid responses and pinned National Land Survey boundaries. ENTSO-E REST access and FI price decoding are verified; prices remain unavailable pending caching/display permission, with exports separately gated. [Price integration status](docs/markets/entsoe.md). Explicit demonstration mode uses mathematical curves with no live inputs; it cannot run in production. [Data meanings and formulas](docs/markets/README.md).
+**Data:** live fundamentals use authenticated Fingrid responses and pinned National Land Survey boundaries. Published FI day-ahead prices come from ENTSO-E; collection, display and CSV export are enabled for this invite-only deployment following the operator's confirmation of reuse permission. Unpublished periods remain unavailable. [Price integration status](docs/markets/entsoe.md). Explicit demonstration mode uses mathematical curves with no live inputs; it cannot run in production. [Data meanings and formulas](docs/markets/README.md).
 
 ## Run locally
 

@@ -13,24 +13,30 @@ the requested Helsinki delivery days. Unknown publication times stay null.
 [Fixture provenance](../../tests/fixtures/markets/providers/README.md) records
 the observed coverage; committed fixtures replace every price amount.
 
-## Remaining release gate
+## Production permissions
 
-REST access is verified. Permission for storing and displaying prices is not.
-`ENTSOE_CONTRACT_VERIFIED=true` therefore leaves `PRICE_REDISPLAY_ALLOWED=false`
-and `PRICE_EXPORT_ALLOWED=false`. The collector makes no scheduled price
-requests, and the dashboard returns unavailable prices rather than zero values.
+On 17 October 2026, the operator confirmed that reuse permission had been
+granted and authorized activation of the gated functionality for this
+non-commercial, invite-only deployment. Production uses
+`ENTSOE_CONTRACT_VERIFIED=true`, `PRICE_REDISPLAY_ALLOWED=true` and
+`PRICE_EXPORT_ALLOWED=true`. The scheduled collector stores published FI
+prices in D1 with 30-day retention; the dashboard displays them and includes
+them in CSV exports. Unpublished periods remain gaps, never zero prices.
+
+The confirmation is operator-reported; private approval correspondence is not
+included in the repository. This deployment's permission is not a licence grant
+to other users of the source code.
 
 ENTSO-E's [terms, section 3.1](https://transparencyplatform.zendesk.com/hc/article_attachments/40921869376401)
 require respecting the primary owner's rights. Day-ahead prices (12.1.d) are
 absent from the [free-reuse list checked on 17 October 2026](https://transparencyplatform.zendesk.com/hc/en-us/article_attachments/40921869379729).
 An API token alone is not evidence of caching, display or export permission.
 
-Ask ENTSO-E support to confirm the relevant primary owner and permitted use of
-FI day-ahead prices in a non-commercial, invite-only application, including
-30-day server caching and display to invited users. Request export permission
-separately if needed. Keep the response privately. Once confirmed, enable only
-the permitted [Infisical settings](secrets.md) and redeploy; no adapter rewrite
-is required.
+Keep the approval privately and review its scope before changing the audience
+or use. New deployments must obtain their own permission before enabling the
+[Infisical settings](secrets.md); both permission switches still default to
+`false`. To suspend price collection and display, set both to `false` and
+redeploy. Set only `PRICE_EXPORT_ALLOWED=false` to disable CSV price export.
 
 References: [official REST integration guide](https://transparencyplatform.zendesk.com/hc/en-us/articles/15692855254548-Sitemap-for-Restful-API-Integration),
 [response time zones](https://transparencyplatform.zendesk.com/hc/en-us/articles/12786431986964-Response-Time-Zone),
