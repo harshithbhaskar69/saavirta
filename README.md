@@ -31,7 +31,7 @@ flowchart LR
 
 One Worker serves the app and APIs. A Durable Object serializes market collection and persists provider quotas; browser requests only read stored market data. D1 retains 30 days of normalized periods and immutable forecast snapshots. React shares a UTC cursor across charts; TypeScript on the server owns market calculations.
 
-**Data:** live fundamentals use authenticated Fingrid responses and pinned National Land Survey boundaries. ENTSO-E prices remain unavailable until REST access and redistribution permission are verified. Explicit demonstration mode uses mathematical curves with no live inputs; it cannot run in production. [Data meanings and formulas](docs/markets/README.md).
+**Data:** live fundamentals use authenticated Fingrid responses and pinned National Land Survey boundaries. ENTSO-E REST access and FI price decoding are verified; prices remain unavailable pending caching/display permission, with exports separately gated. [Price integration status](docs/markets/entsoe.md). Explicit demonstration mode uses mathematical curves with no live inputs; it cannot run in production. [Data meanings and formulas](docs/markets/README.md).
 
 ## Run locally
 

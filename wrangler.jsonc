@@ -50,13 +50,13 @@
     "MARKET_MODE": "live",
     "COLLECTOR_ENABLED": "false",
     "FINGRID_CONTRACT_VERIFIED": "true",
-    "ENTSOE_CONTRACT_VERIFIED": "false",
+    "ENTSOE_CONTRACT_VERIFIED": "true",
     "PRICE_REDISPLAY_ALLOWED": "false",
     "PRICE_EXPORT_ALLOWED": "false",
   },
   // Runtime credentials are injected from Infisical; cloud administration tokens are never bindings.
   "secrets": {
-    "required": ["FINGRID_API_KEY", "ENTSOE_TOKEN", "OPEN_METEO_API_KEY"],
+    "required": ["FINGRID_API_KEY", "ENTSOE_API_TOKEN", "OPEN_METEO_API_KEY"],
   },
   "observability": {
     "enabled": true,

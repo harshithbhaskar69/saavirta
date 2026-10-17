@@ -98,7 +98,7 @@ export class MarketCollector extends DurableObject<Cloudflare.Env> {
       }
       const enabled =
         job.dataset === "price"
-          ? priceEnabled(this.env) && !!this.env.ENTSOE_TOKEN
+          ? priceEnabled(this.env) && !!this.env.ENTSOE_API_TOKEN
           : this.env.FINGRID_CONTRACT_VERIFIED === "true" &&
             !!this.env.FINGRID_API_KEY;
       if (enabled) {
@@ -121,7 +121,7 @@ export class MarketCollector extends DurableObject<Cloudflare.Env> {
             job.dataset === "price"
               ? await fetchEntsoe(
                   network,
-                  this.env.ENTSOE_TOKEN ?? "",
+                  this.env.ENTSOE_API_TOKEN ?? "",
                   window,
                   signal,
                 )

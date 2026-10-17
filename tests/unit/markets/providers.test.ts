@@ -6,6 +6,11 @@ import {
 } from "../../../src/server/markets/fingrid";
 import { decodeEntsoe, fetchEntsoe } from "../../../src/server/markets/entsoe";
 import { ProviderClient } from "../../../src/server/markets/provider";
+import {
+  deliveryWindow,
+  minute,
+  pricePeriods,
+} from "../../../src/server/markets/time";
 import type {
   ProviderState,
   ProviderTransport,
@@ -64,6 +69,42 @@ describe("Fingrid authenticated fixture contract", () => {
         new AbortController().signal,
       ),
     ).rejects.toThrow("pagination-mismatch");
+  });
+});
+describe("ENTSO-E authenticated response structure with replacement prices", () => {
+  it.each([
+    ["quarter-hour", "2026-10-17", 192, 96, 15],
+    ["hourly", "2025-08-01", 48, 24, 60],
+  ] as const)(
+    "aligns the %s response to a Helsinki delivery day",
+    (name, date, nativeCount, deliveryCount, resolution) => {
+      const decoded = decodeEntsoe(
+        readFileSync(`${directory}entsoe-${name}.xml`, "utf8"),
+      );
+      expect(decoded.intervals).toHaveLength(nativeCount);
+      const requested = deliveryWindow(date, 1);
+      const selected = pricePeriods(decoded.intervals, requested);
+      expect(selected).toHaveLength(deliveryCount);
+      expect(selected[0].start).toBe(requested.start);
+      expect(selected.at(-1)?.end).toBe(requested.end);
+      expect(
+        selected.every((point) => point.coverage === 1 && point.value !== null),
+      ).toBe(true);
+      expect(
+        selected.every(
+          (point) =>
+            Date.parse(point.end) - Date.parse(point.start) ===
+            resolution * minute,
+        ),
+      ).toBe(true);
+    },
+  );
+  it("keeps an authenticated no-data acknowledgement empty", () => {
+    const decoded = decodeEntsoe(
+      readFileSync(`${directory}entsoe-unpublished.xml`, "utf8"),
+    );
+    expect(decoded.intervals).toEqual([]);
+    expect(decoded.revision).toBeNull();
   });
 });
 describe("ENTSO-E synthetic contract edge cases", () => {

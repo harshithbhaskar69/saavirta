@@ -79,3 +79,31 @@ test("deployment probes require both credentials and reject header injection", (
     },
   );
 });
+
+test("ENTSO-E access does not grant price display or export permission", () => {
+  const settings = { ENTSOE_API_TOKEN: "test-entsoe" };
+  const defaults = productionConfig(built, inputs, settings);
+  assert.equal(defaults.vars.ENTSOE_CONTRACT_VERIFIED, "true");
+  assert.equal(defaults.vars.PRICE_REDISPLAY_ALLOWED, "false");
+  assert.equal(defaults.vars.PRICE_EXPORT_ALLOWED, "false");
+  assert.equal(defaults.vars.ENTSOE_API_TOKEN, undefined);
+  const display = productionConfig(built, inputs, {
+    ...settings,
+    PRICE_REDISPLAY_ALLOWED: "true",
+  });
+  assert.equal(display.vars.PRICE_REDISPLAY_ALLOWED, "true");
+  assert.equal(display.vars.PRICE_EXPORT_ALLOWED, "false");
+  for (const invalid of [
+    { PRICE_REDISPLAY_ALLOWED: "true" },
+    { ...settings, PRICE_REDISPLAY_ALLOWED: "yes" },
+    { ...settings, PRICE_EXPORT_ALLOWED: "true" },
+    { ...settings, PRICE_EXPORT_ALLOWED: true },
+  ])
+    assert.throws(() => productionConfig(built, inputs, invalid));
+  const exported = productionConfig(built, inputs, {
+    ...settings,
+    PRICE_REDISPLAY_ALLOWED: "true",
+    PRICE_EXPORT_ALLOWED: "true",
+  });
+  assert.equal(exported.vars.PRICE_EXPORT_ALLOWED, "true");
+});

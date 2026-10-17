@@ -180,7 +180,7 @@ export function run(
 
 export function runtimeSecrets(secrets) {
   return Object.fromEntries(
-    ["FINGRID_API_KEY", "ENTSOE_TOKEN", "OPEN_METEO_API_KEY"]
+    ["FINGRID_API_KEY", "ENTSOE_API_TOKEN", "OPEN_METEO_API_KEY"]
       .filter(
         (name) => typeof secrets[name] === "string" && secrets[name].length > 0,
       )

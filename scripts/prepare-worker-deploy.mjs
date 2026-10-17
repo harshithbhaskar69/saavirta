@@ -14,6 +14,25 @@ export function productionConfig(built, inputs, settings = {}) {
         settings.OPEN_METEO_API_KEY.trim().length > 0,
       "Customer weather mode requires OPEN_METEO_API_KEY",
     );
+  const pricePermissions = {
+    PRICE_REDISPLAY_ALLOWED: settings.PRICE_REDISPLAY_ALLOWED ?? "false",
+    PRICE_EXPORT_ALLOWED: settings.PRICE_EXPORT_ALLOWED ?? "false",
+  };
+  for (const [name, value] of Object.entries(pricePermissions))
+    assert.ok(["true", "false"].includes(value), `Invalid ${name}`);
+  if (pricePermissions.PRICE_REDISPLAY_ALLOWED === "true")
+    assert.ok(
+      typeof settings.ENTSOE_API_TOKEN === "string" &&
+        settings.ENTSOE_API_TOKEN.trim().length > 0 &&
+        !/[\r\n]/.test(settings.ENTSOE_API_TOKEN),
+      "Price display requires ENTSOE_API_TOKEN",
+    );
+  if (pricePermissions.PRICE_EXPORT_ALLOWED === "true")
+    assert.equal(
+      pricePermissions.PRICE_REDISPLAY_ALLOWED,
+      "true",
+      "Price exports require display permission",
+    );
   assert.match(inputs.account_id, /^[a-f0-9]{32}$/);
   assert.match(inputs.weather_cache_id, /^[a-f0-9]{32}$/);
   assert.equal(inputs.name, "www");
@@ -48,9 +67,8 @@ export function productionConfig(built, inputs, settings = {}) {
     MARKET_MODE: "live",
     COLLECTOR_ENABLED: "true",
     FINGRID_CONTRACT_VERIFIED: "true",
-    ENTSOE_CONTRACT_VERIFIED: "false",
-    PRICE_REDISPLAY_ALLOWED: "false",
-    PRICE_EXPORT_ALLOWED: "false",
+    ENTSOE_CONTRACT_VERIFIED: "true",
+    ...pricePermissions,
   };
   config.secrets = { required: ["FINGRID_API_KEY"] };
   config.observability = {

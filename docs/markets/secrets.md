@@ -9,11 +9,13 @@ Development selects `dev`, path `/`; production is explicitly `prod`, path `/`. 
 | `CLOUDFLARE_API_TOKEN` | Deployment process only; account-scoped Workers, Durable Objects, D1, KV, private R2 and Access management |
 | `ACCESS_CLIENT_ID`, `ACCESS_CLIENT_SECRET` | Deployment checks only; a dedicated Cloudflare Access service token, never a Worker binding or Terraform input |
 | `FINGRID_API_KEY` | Worker secret used only by the market collector |
-| `ENTSOE_TOKEN` | Optional Worker secret; prices still require verified contract and redistribution switches |
+| `ENTSOE_API_TOKEN` | Optional Worker secret used only by the market collector; prices still require confirmed reuse rights |
 | `OPEN_METEO_API_KEY` | Optional Worker secret for an entitled weather plan |
 | `NLS_API_KEY` | Offline authoritative-boundary acquisition only |
 
 The production runtime allowlist is in `scripts/cloud-auth.mjs`. Extra Infisical values are never automatically sent to the Worker. Secret names may be declared in Wrangler; their values are absent from source and build artifacts. Automatic request traces are disabled because upstream query strings can contain provider credentials.
+
+ENTSO-E REST authentication and the FI day-ahead response contract were verified on 17 October 2026. API access does not enable collection or display: `PRICE_REDISPLAY_ALLOWED` defaults to `false`. After confirming permission for caching and display, set it to `true` in Infisical prod and deploy. `PRICE_EXPORT_ALLOWED` separately defaults to `false`; enable it only when exports are also permitted. Deployment rejects invalid switches, display without a token, and export without display permission. See [price verification and remaining gates](entsoe.md).
 
 Infisical prod also holds Access configuration: `ACCESS_ALLOWED_EMAILS` is a JSON array of invited addresses, and `ACCESS_SERVICE_TOKEN_ID` is the UUID of the verification service token. These are Terraform inputs; the client secret is not. Create the named token in Cloudflare Zero Trust, then save its ID, client ID and client secret directly in Infisical. Rotate it before expiry, apply the new token ID, verify deployment checks, then revoke the old token. The current token has a one-year lifetime.
 

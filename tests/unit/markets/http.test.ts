@@ -106,4 +106,26 @@ describe("market Worker API", () => {
     ).toContain("storage-unavailable");
     expect(JSON.stringify(data)).not.toContain("private-details");
   });
+  it("withholds stored prices until display permission is enabled", async () => {
+    const store = new DemoReader(now);
+    const read = vi.spyOn(store, "read");
+    const response = await marketRequest(request(input), "dashboard", store, {
+      ...options,
+      pricesEnabled: false,
+      priceExportAllowed: true,
+    });
+    const data = dashboardSchema.parse(await response.json());
+    const prices = data.series.find((series) => series.dataset === "price");
+    expect(prices?.quality.issues).toContain("price-permission-required");
+    expect(prices?.intervals.every((period) => period.value === null)).toBe(
+      true,
+    );
+    expect(read.mock.calls.some(([dataset]) => dataset === "price")).toBe(
+      false,
+    );
+    expect(data.priceExportAllowed).toBe(false);
+    expect(
+      data.priceSummaries.every((summary) => summary.average === null),
+    ).toBe(true);
+  });
 });
