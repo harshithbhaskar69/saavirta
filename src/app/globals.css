@@ -2161,6 +2161,134 @@ tbody tr {
   border-radius: inherit;
   background: var(--accent);
 }
+.condition-toggle {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  width: 100%;
+  min-height: 44px;
+  margin-top: 12px;
+  border-top: 1px solid var(--border);
+  color: var(--ink);
+  font-size: 13px;
+  text-align: left;
+}
+.condition-toggle svg {
+  flex-shrink: 0;
+  width: 16px;
+  height: 16px;
+}
+.condition-toggle[aria-expanded="true"] svg {
+  transform: rotate(180deg);
+}
+.condition-detail {
+  margin-top: 20px;
+  padding-top: 12px;
+  border-top: 1px solid var(--border);
+}
+.condition-detail-heading,
+.condition-plot-heading {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  flex-wrap: wrap;
+  gap: 8px 16px;
+}
+.condition-detail-heading h4 {
+  flex: 1;
+  font-size: 18px;
+  font-weight: 600;
+}
+.condition-context {
+  max-width: 75ch;
+  margin: 0 0 16px;
+  color: var(--muted);
+  font-size: 14px;
+  line-height: 1.6;
+}
+.condition-highlights {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px 24px;
+  margin-bottom: 20px;
+}
+.condition-highlights button {
+  display: grid;
+  grid-template-columns: auto auto;
+  gap: 4px 20px;
+  min-height: 44px;
+  padding: 8px;
+  font-size: 14px;
+  text-align: left;
+}
+.condition-highlights button[aria-pressed="true"] {
+  background: var(--soft);
+}
+.condition-highlights strong,
+.condition-plot-heading strong {
+  font-variant-numeric: tabular-nums;
+}
+.condition-highlights small {
+  grid-column: 1 / -1;
+  color: var(--muted);
+  font-size: 12px;
+}
+.condition-inspection label {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px 12px;
+  font-size: 13px;
+}
+.condition-inspection input {
+  display: block;
+  width: 100%;
+  min-height: 44px;
+  margin: 0 0 12px;
+  accent-color: var(--accent);
+}
+.condition-plots {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(min(100%, 360px), 1fr));
+  gap: 24px;
+}
+.condition-plot {
+  min-width: 0;
+}
+.condition-plot-heading h5 {
+  font-size: 14px;
+  font-weight: 600;
+}
+.condition-plot-heading small {
+  margin-left: 4px;
+  color: var(--muted);
+  font-size: 12px;
+  font-weight: 400;
+}
+.condition-plot-time,
+.condition-note {
+  color: var(--muted);
+  font-size: 12px;
+  line-height: 1.6;
+}
+.condition-plot-time {
+  margin: 4px 0 8px;
+}
+.condition-chart-canvas {
+  height: 180px;
+  touch-action: pan-y;
+}
+.condition-chart-empty {
+  display: grid;
+  align-content: center;
+  min-height: 180px;
+  color: var(--muted);
+  font-size: 14px;
+}
+.condition-note {
+  max-width: 75ch;
+  margin-top: 12px;
+}
 @media (max-width: 850px) {
   .weather-tiles {
     grid-template-columns: repeat(2, minmax(0, 1fr));

@@ -82,6 +82,12 @@ export function ForecastCharts({
   // A focused day shows its own instants and the solar intervals that start in it.
   const instants = focused?.instants ?? hourly,
     intervals = focused?.intervals ?? hourly;
+  // Include the midnight endpoint of the day's final preceding-hour interval.
+  const inspectionHours = focused
+    ? hourly.filter(
+        (hour) => instants.includes(hour) || intervals.includes(hour),
+      )
+    : hourly;
   const normals = useMemo(
     () => normalSeries(hourly, timezone, baselines),
     [hourly, timezone, baselines],
@@ -131,19 +137,19 @@ export function ForecastCharts({
   ];
   const index = Math.max(
       0,
-      instants.findIndex((h) => h.time === selectedTime),
+      inspectionHours.findIndex((h) => h.time === selectedTime),
     ),
-    selected: Hour = instants[index];
+    selected: Hour = inspectionHours[index];
   // The line is two series meeting at the cursor's sample: full strength up to
   // it, a shade lighter after it. Linear segments make the split exact.
   const split = useMemo(
     () =>
-      temperature.map((h, i) => ({
+      temperature.map((h) => ({
         ...h,
-        toCursor: i <= index ? h.temperatureC : null,
-        fromCursor: i >= index ? h.temperatureC : null,
+        toCursor: h.time <= selected.time ? h.temperatureC : null,
+        fromCursor: h.time >= selected.time ? h.temperatureC : null,
       })),
-    [temperature, index],
+    [temperature, selected.time],
   );
   const normalNow = normals?.[hourly.indexOf(selected)] ?? null;
   const dayLabel = new Intl.DateTimeFormat("en-GB", {
@@ -196,15 +202,16 @@ export function ForecastCharts({
     const overSolar =
       event.clientY >=
       (solarBlock.current?.getBoundingClientRect().top ?? Infinity);
-    const steps = (at - instants[0].time) / HOUR;
+    const steps = (at - inspectionHours[0].time) / HOUR;
     const i = Math.min(
-      instants.length - 1,
+      inspectionHours.length - 1,
       Math.max(0, overSolar ? Math.ceil(steps) : Math.round(steps)),
     );
-    if (instants[i].time !== selectedTime) onInspect(instants[i].time);
+    if (inspectionHours[i].time !== selectedTime)
+      onInspect(inspectionHours[i].time);
   };
   const step = (event: KeyboardEvent<HTMLDivElement>) => {
-    const last = instants.length - 1;
+    const last = inspectionHours.length - 1;
     const next =
       event.key === "Home"
         ? 0
@@ -215,7 +222,7 @@ export function ForecastCharts({
             : null;
     if (next === null) return;
     event.preventDefault();
-    onInspect(instants[next].time);
+    onInspect(inspectionHours[next].time);
   };
   const interval = `${localTime(selected.time - HOUR, timezone)}-${localTime(selected.time, timezone)}`;
   const download = () => {
@@ -465,7 +472,7 @@ export function ForecastCharts({
           aria-label="Forecast hour"
           aria-orientation="horizontal"
           aria-valuemin={0}
-          aria-valuemax={instants.length - 1}
+          aria-valuemax={inspectionHours.length - 1}
           aria-valuenow={index}
           aria-valuetext={`${hourLabel(selected.time, timezone)}; ${formatNumber(selected.temperatureC)} degrees Celsius; ${formatNumber(selected.solarIrradianceWm2, 0)} watts per square metre`}
           aria-keyshortcuts="ArrowLeft ArrowRight PageUp PageDown Home End"

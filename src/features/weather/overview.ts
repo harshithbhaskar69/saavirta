@@ -74,6 +74,43 @@ export function localDays(hours: Hour[], timezone: string): LocalDay[] {
   return [...days.values()];
 }
 
+export interface WindHighlight {
+  label: string;
+  time: number;
+  value: number;
+  precedingHour: boolean;
+}
+
+/** Extremes of available forecast hours; ties use the first occurrence. */
+export function windHighlights(
+  instants: Hour[],
+  intervals: Hour[],
+): WindHighlight[] {
+  const highlights: WindHighlight[] = [];
+  for (const [label, hours, field, lowest] of [
+    ["Strongest wind", instants, "windSpeedMs", false],
+    ["Lowest wind", instants, "windSpeedMs", true],
+    ["Peak gust", intervals, "windGustMs", false],
+  ] as const) {
+    let best: WindHighlight | null = null;
+    for (const hour of hours) {
+      const value = hour[field];
+      if (
+        value !== null &&
+        (best === null || (lowest ? value < best.value : value > best.value))
+      )
+        best = {
+          label,
+          value,
+          time: hour.time,
+          precedingHour: field === "windGustMs",
+        };
+    }
+    if (best) highlights.push(best);
+  }
+  return highlights;
+}
+
 /** "Today" and "Tomorrow" by the point's calendar, null for later days. */
 export function relativeDays(
   keys: string[],

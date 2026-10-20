@@ -7,14 +7,15 @@ import { dashboardSchema } from "../../src/features/markets/contracts";
 const shared =
   "/?lat=60.1695&lon=24.9354&name=Helsinki&countryCode=FI&workspace=markets&delivery=2026-10-15";
 async function mock(page: Page) {
-  await page.clock.setFixedTime(new Date(fixture.generatedAt));
+  const now = Date.parse(fixture.generatedAt);
+  await page.clock.setFixedTime(now);
   await page.route("**/api/weather**", (route) => {
-    const weather = forecast();
+    const weather = forecast("48h", undefined, now);
     weather.location.timezone = "Europe/Helsinki";
     return route.fulfill({ json: weather });
   });
   await page.route("**/api/baselines**", (route) =>
-    route.fulfill({ json: baselines() }),
+    route.fulfill({ json: baselines(undefined, now) }),
   );
   await page.route("**/api/v1/market-context", (route) => {
     const body = route.request().postDataJSON();
@@ -85,6 +86,19 @@ test("Delivery desk inspects one UTC interval and preserves workspace history", 
     page.getByRole("heading", { name: "Finland electricity", exact: true }),
   ).toBeVisible();
   await expect(page.getByText(/Demonstration data\./)).toBeVisible();
+  const demand = page.getByRole("region", { name: "Demand", exact: true });
+  await expect(demand.locator(".market-legend")).toContainText(
+    "Consumption forecast · Fingrid",
+  );
+  await demand
+    .getByRole("button", { name: "About the consumption forecast" })
+    .click();
+  await expect(demand.locator(".info-popover")).toBeVisible();
+  await expect(demand.locator(".info-popover")).toContainText("dataset 166");
+  await expect(demand.locator(".info-popover")).toContainText(
+    "does not forecast your customers' demand",
+  );
+  await page.keyboard.press("Escape");
   const slider = page.getByRole("slider", {
     name: "Delivery period",
     exact: true,

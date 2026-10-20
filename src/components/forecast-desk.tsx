@@ -816,6 +816,8 @@ export function ForecastDesk({ mapKey }: { mapKey: string }) {
                   <>
                     <DailySummary
                       forecast={forecast}
+                      selectedTime={selectedTime}
+                      onInspect={inspect}
                       dark={theme === "dark"}
                       baselines={{
                         data: baselines.data,

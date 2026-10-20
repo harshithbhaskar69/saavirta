@@ -4,6 +4,8 @@ import {
   dailySummary,
   forecastCsv,
   normalSeries,
+  localDays,
+  windHighlights,
 } from "../../src/features/weather/overview";
 import type { Baselines, Hour } from "../../src/features/weather/types";
 import { HOUR } from "../fixtures/weather";
@@ -21,6 +23,55 @@ const series = (start: string, count: number, values: Partial<Hour> = {}) =>
     precipitationProbabilityPct: 40,
     ...values,
   }));
+
+describe("wind forecast hours to inspect", () => {
+  it("preserves calm wind, skips missing values and picks the first tied extreme", () => {
+    const hours = series("2026-10-13T12:00:00Z", 4);
+    hours[0].windSpeedMs = null;
+    hours[1].windSpeedMs = 0;
+    hours[2].windSpeedMs = 9;
+    hours[3].windSpeedMs = 9;
+    expect(windHighlights(hours, [])).toEqual([
+      {
+        label: "Strongest wind",
+        value: 9,
+        time: hours[2].time,
+        precedingHour: false,
+      },
+      {
+        label: "Lowest wind",
+        value: 0,
+        time: hours[1].time,
+        precedingHour: false,
+      },
+    ]);
+    expect(
+      windHighlights(
+        series("2026-10-13T12:00:00Z", 2, { windSpeedMs: null }),
+        [],
+      ),
+    ).toEqual([]);
+  });
+
+  it("keeps the midnight gust with the preceding day, including the repeated DST hour", () => {
+    const hours = series("2026-10-24T21:00:00Z", 26);
+    hours[4].windSpeedMs = 12;
+    hours[25].windGustMs = 20;
+    const day = localDays(hours, "Europe/Helsinki")[0];
+    expect(day.instants).toHaveLength(25);
+    expect(windHighlights(day.instants, day.intervals)).toMatchObject([
+      { label: "Strongest wind", time: hours[4].time, value: 12 },
+      { label: "Lowest wind", time: hours[0].time },
+      {
+        label: "Peak gust",
+        time: hours[25].time,
+        value: 20,
+        precedingHour: true,
+      },
+    ]);
+    expect(windHighlights([], [])).toEqual([]);
+  });
+});
 
 describe("daily summary by local day", () => {
   it("splits a rolling 48-hour window into partial and complete local days", () => {

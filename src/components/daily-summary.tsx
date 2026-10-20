@@ -75,6 +75,8 @@ export function DailySummary({
   controls,
   updating,
   dark,
+  selectedTime,
+  onInspect,
 }: {
   forecast: Forecast;
   baselines: BaselineState;
@@ -85,6 +87,8 @@ export function DailySummary({
   /** Status text while another horizon loads over this one. */
   updating?: string;
   dark: boolean;
+  selectedTime: number | null;
+  onInspect: (time: number) => void;
 }) {
   const id = useId();
   const [copied, setCopied] = useState(false);
@@ -609,6 +613,10 @@ export function DailySummary({
             day={conditionDay}
             visible={visibleMetrics}
             dark={dark}
+            hours={hourly}
+            timezone={timezone}
+            selectedTime={selectedTime}
+            onInspect={onInspect}
           />
         </section>
       )}

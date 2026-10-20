@@ -28,15 +28,29 @@ function useDisclosure() {
 export function Disclosure({
   children,
   className,
+  id: suppliedId,
+  open: controlledOpen,
+  onOpenChange,
 }: {
   children: ReactNode;
   className?: string;
+  id?: string;
+  open?: boolean;
+  onOpenChange?: (open: boolean) => void;
 }) {
-  const [open, setOpen] = useState(false);
-  const id = useId();
+  const [internalOpen, setOpen] = useState(false);
+  const generatedId = useId();
+  const open = controlledOpen ?? internalOpen;
   return (
     <DisclosureContext.Provider
-      value={{ open, toggle: () => setOpen((value) => !value), id }}
+      value={{
+        open,
+        toggle: () => {
+          setOpen(!open);
+          onOpenChange?.(!open);
+        },
+        id: suppliedId ?? generatedId,
+      }}
     >
       <div className={className}>{children}</div>
     </DisclosureContext.Provider>

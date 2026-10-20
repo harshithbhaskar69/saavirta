@@ -26,6 +26,7 @@ import {
   DownloadSimpleIcon,
 } from "@phosphor-icons/react";
 import type { Forecast, Place } from "@/features/weather/types";
+import { InfoTip } from "@/components/info-tip";
 import { useMarkets } from "./use-markets";
 import { MetricCard } from "./metric-card";
 import type { Dashboard, MarketSeries, MarketSettings } from "./contracts";
@@ -101,7 +102,32 @@ function ChartRow({
   return (
     <section className="market-chart" aria-label={title}>
       <div className="market-chart-heading">
-        <h3>{title}</h3>
+        <div className="market-chart-title">
+          <h3>{title}</h3>
+          {series.some((s) => s.id === "consumption-forecast") && (
+            <InfoTip label="About the consumption forecast">
+              <h4>Finland's national demand forecast</h4>
+              <p>
+                Fingrid produces the consumption forecast (dataset 166) from
+                historical consumption and weather forecasts. It covers the next
+                72 hours in 15-minute periods and is updated every 15 minutes.
+              </p>
+              <p>
+                Actual consumption uses Fingrid dataset 124. Säävirta aligns
+                these series and calculates changes and errors against earlier
+                collected forecasts; it does not forecast your customers'
+                demand.
+              </p>
+              <a
+                href="https://data.fingrid.fi/en/datasets/166"
+                target="_blank"
+                rel="noreferrer"
+              >
+                Fingrid forecast methodology
+              </a>
+            </InfoTip>
+          )}
+        </div>
         <span>{unit}</span>
       </div>
       <div className="market-legend">
@@ -111,7 +137,10 @@ function ChartRow({
             data-dashed={s.classification === "forecast"}
             style={{ color: i === 1 ? "var(--solar)" : "var(--ink)" }}
           >
-            {s.label}{" "}
+            {s.label}
+            {s.id === "consumption-forecast" || s.id === "consumption-actual"
+              ? " · Fingrid"
+              : ""}{" "}
             <small>
               · {s.quality.availability}
               {s.quality.freshness === "stale" ? " · stale" : ""}

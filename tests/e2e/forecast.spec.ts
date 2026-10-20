@@ -66,6 +66,230 @@ test.beforeEach(async ({ page }) => {
   await mockWeather(page);
 });
 
+test("condition details expose hourly wind and cloud timing without additional requests", async ({
+  page,
+  isMobile,
+}, testInfo) => {
+  const now = Date.parse("2026-10-21T06:30:00Z");
+  await page.clock.setFixedTime(new Date(now));
+  await page.route("**/api/weather**", (route) =>
+    route.fulfill({ json: forecast("48h", point, now) }),
+  );
+  await page.emulateMedia({ colorScheme: "light", reducedMotion: "reduce" });
+  const errors: string[] = [];
+  page.on("pageerror", (error) => errors.push(error.message));
+  const requests: string[] = [];
+  page.on("request", (request) => {
+    if (new URL(request.url()).pathname === "/api/weather")
+      requests.push(request.url());
+  });
+  await page.goto(shared);
+  const wind = page.getByRole("button", {
+    name: "Hourly wind conditions",
+    exact: true,
+  });
+  await expect(wind).toHaveAttribute("aria-expanded", "false");
+  const before = requests.length;
+  await wind.focus();
+  await page.keyboard.press("Enter");
+  await expect(wind).toHaveAttribute("aria-expanded", "true");
+  const detail = page.locator(".condition-detail");
+  const slider = detail.getByRole("slider", {
+    name: "Condition forecast hour",
+  });
+  await expect(
+    detail.getByRole("heading", { name: "Wind conditions · Hourly forecast" }),
+  ).toBeVisible();
+  await detail.getByRole("button", { name: /Strongest wind/ }).click();
+  await expect(
+    detail.getByRole("button", { name: /Strongest wind/ }),
+  ).toHaveAttribute("aria-pressed", "true");
+  await slider.focus();
+  await slider.press("Home");
+  await slider.press("ArrowRight");
+  await expect(slider).toHaveValue("1");
+  const main = page.getByRole("slider", { name: "Forecast hour", exact: true });
+  await expect(main).toHaveAttribute("aria-valuenow", "1");
+  await slider.press("End");
+  await expect(main).toHaveAttribute(
+    "aria-valuenow",
+    await slider.inputValue(),
+  );
+  await expect(
+    detail
+      .getByRole("region", { name: "Wind speed at 10 m", exact: true })
+      .locator(".condition-plot-heading > strong"),
+  ).not.toHaveText("Unavailable");
+  await detail.getByText("View wind hourly values", { exact: true }).click();
+  await expect(detail.getByRole("table")).toBeVisible();
+  await expect(
+    detail.getByRole("columnheader", { name: "Gusts at 10 m (m/s)" }),
+  ).toBeVisible();
+  await detail.getByText("View wind hourly values", { exact: true }).click();
+  for (const theme of ["light", "dark"]) {
+    if (theme === "dark")
+      await page
+        .getByRole("button", { name: "Switch to dark appearance" })
+        .click();
+    await detail.scrollIntoViewIfNeeded();
+    await expect(detail.locator(".recharts-surface")).toHaveCount(2);
+    expect(
+      await page
+        .locator(".skip-link")
+        .evaluate((link) => link.getBoundingClientRect().bottom),
+    ).toBeLessThan(0);
+    await page.locator(".daily-conditions").screenshot({
+      path: `.impeccable/review/condition-wind-${testInfo.project.name}-${theme}.png`,
+      // Keep the offscreen skip link out of Chrome's tall element capture.
+      style: ".skip-link:not(:focus) { visibility: hidden; }",
+    });
+    expect(
+      (await new AxeBuilder({ page }).include(".daily-conditions").analyze())
+        .violations,
+    ).toEqual([]);
+    expect(
+      await page.evaluate(
+        () => document.documentElement.scrollWidth > innerWidth,
+      ),
+    ).toBe(false);
+  }
+  await detail.getByRole("button", { name: "Close hourly forecast" }).click();
+  await expect(wind).toBeFocused();
+  await expect(detail).toBeHidden();
+  await page
+    .getByRole("button", { name: "Hourly cloud cover", exact: true })
+    .click();
+  await expect(
+    detail.getByRole("heading", {
+      name: "Cloud cover and irradiance · Hourly forecast",
+    }),
+  ).toBeVisible();
+  await expect(detail.locator(".condition-plot")).toHaveCount(2);
+  await expect(detail).toContainText("Mean during each hour");
+  if (isMobile) {
+    await page.setViewportSize({ width: 320, height: 800 });
+    expect(
+      await page.evaluate(
+        () => document.documentElement.scrollWidth > innerWidth,
+      ),
+    ).toBe(false);
+  }
+  await detail.screenshot({
+    path: `.impeccable/review/condition-cloud-${testInfo.project.name}.png`,
+  });
+  await page
+    .getByRole("button", { name: "Hourly humidity", exact: true })
+    .click();
+  await expect(detail.locator(".condition-plot")).toHaveCount(1);
+  await page
+    .getByRole("button", { name: "Hourly precipitation", exact: true })
+    .click();
+  await expect(detail).toContainText(
+    "Chance of more than 0.1 mm during each hour",
+  );
+  await page
+    .getByRole("group", { name: "Day for weather tiles" })
+    .getByRole("button")
+    .nth(1)
+    .click();
+  await expect(slider).toHaveValue("0");
+  expect(requests).toHaveLength(before);
+  expect(errors).toEqual([]);
+});
+
+test("condition details preserve unavailable data and zero, including a partial final day", async ({
+  page,
+}) => {
+  const now = Date.parse("2026-10-20T22:30:00Z");
+  await page.clock.setFixedTime(new Date(now));
+  await page.emulateMedia({ reducedMotion: "reduce" });
+  await page.route("**/api/weather**", async (route) => {
+    const result = forecast("48h", point, now);
+    for (const hour of result.hourly)
+      Object.assign(hour, {
+        windSpeedMs: null,
+        windGustMs: null,
+        humidityPct: null,
+        cloudCoverPct: null,
+        precipitationMm: 0,
+        precipitationProbabilityPct: 0,
+      });
+    await route.fulfill({ json: result });
+  });
+  await page.goto(shared);
+  await page
+    .getByRole("button", { name: "Hourly wind conditions", exact: true })
+    .click();
+  const detail = page.locator(".condition-detail");
+  await expect(detail).toContainText("No wind speed at 10 m data");
+  await expect(
+    detail.getByRole("button", { name: /Strongest wind/ }),
+  ).toHaveCount(0);
+  await page
+    .getByRole("button", { name: "Hourly precipitation", exact: true })
+    .click();
+  await expect(detail.locator(".condition-plot-heading > strong")).toHaveText([
+    "0.0 mm",
+    "0 %",
+  ]);
+  const days = page.getByRole("group", { name: "Day for weather tiles" });
+  await days.getByRole("button").last().click();
+  await expect(detail.getByRole("slider")).toBeDisabled();
+  await expect(detail).toContainText(
+    "No precipitation data for these forecast hours.",
+  );
+  await expect(detail.locator(".condition-plot-heading > strong")).toHaveText([
+    "Unavailable",
+    "Unavailable",
+  ]);
+});
+
+test("condition inspection distinguishes repeated DST hours and the midnight gust", async ({
+  page,
+}) => {
+  const now = Date.parse("2026-10-24T20:30:00Z");
+  await page.clock.setFixedTime(new Date(now));
+  await page.emulateMedia({ reducedMotion: "reduce" });
+  await page.route("**/api/weather**", async (route) => {
+    const result = forecast("48h", point, now);
+    result.location.timezone = "Europe/Helsinki";
+    const midnight = result.hourly.find(
+      (hour) => hour.time === Date.parse("2026-10-25T22:00:00Z"),
+    )!;
+    midnight.windGustMs = 30;
+    await route.fulfill({ json: result });
+  });
+  await page.goto(shared);
+  await page
+    .getByRole("group", { name: "Day for weather tiles" })
+    .getByRole("button")
+    .first()
+    .click();
+  await page
+    .getByRole("button", { name: "Hourly wind conditions", exact: true })
+    .click();
+  const detail = page.locator(".condition-detail");
+  await detail.getByText("View wind hourly values", { exact: true }).click();
+  await expect(
+    detail.getByRole("rowheader", {
+      name: "Sun 25 Oct, 03:00 GMT+3",
+      exact: true,
+    }),
+  ).toBeVisible();
+  await expect(
+    detail.getByRole("rowheader", {
+      name: "Sun 25 Oct, 03:00 GMT+2",
+      exact: true,
+    }),
+  ).toBeVisible();
+  await detail.getByRole("button", { name: /Peak gust/ }).click();
+  await expect(detail.getByRole("slider")).toHaveValue("25");
+  await expect(
+    page.getByRole("slider", { name: "Forecast hour", exact: true }),
+  ).toHaveAttribute("aria-valuenow", "25");
+  await expect(detail).toContainText("23:00 GMT+2 - 00:00 GMT+2");
+});
+
 test("privacy notice is keyboard accessible and Sign out navigates to Cloudflare", async ({
   page,
   isMobile,
