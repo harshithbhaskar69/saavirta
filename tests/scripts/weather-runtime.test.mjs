@@ -4,7 +4,7 @@ import { setTimeout } from "node:timers/promises";
 import { build } from "esbuild";
 import { Miniflare, convertV4MiniflareOptions } from "miniflare";
 
-for (const section of ["forecast", "baselines"]) {
+for (const section of ["forecast", "baselines", "uncertainty"]) {
   test(`${section} recovers after an earlier request context ends`, async () => {
     const compiled = await build({
       entryPoints: ["tests/runtime/weather.ts"],
@@ -37,7 +37,11 @@ for (const section of ["forecast", "baselines"]) {
       assert.equal(response.status, 200);
       const result = await response.json();
       if (section === "forecast") assert.equal(result.hourly.length, 48);
-      else {
+      else if (section === "uncertainty") {
+        assert.equal(result.memberCount, 51);
+        assert.equal(result.hourly.length, 48);
+        assert.equal(result.source.calibrated, false);
+      } else {
         assert.ok(result.normals);
         assert.ok(result.revision);
       }

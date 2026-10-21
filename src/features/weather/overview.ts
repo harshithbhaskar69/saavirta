@@ -1,5 +1,6 @@
 import { HOUR, localClock } from "@/lib/time";
 import type { Baselines, Hour, HourlyNormal } from "./types";
+import type { Uncertainty } from "./uncertainty";
 
 // Illustrative balance temperatures, not a calibrated load model.
 export const HEATING_BASE_C = 18;
@@ -54,16 +55,19 @@ export type DaySummary = {
   precipitationProbabilityMaxPct: number | null;
 };
 
-type LocalDay = { key: string; instants: Hour[]; intervals: Hour[] };
+type LocalDay<T> = { key: string; instants: T[]; intervals: T[] };
 /**
  * Groups contiguous hours into the point's local calendar days. Instantaneous
  * samples (temperature, humidity, wind, cloud) belong to the day of their timestamp;
  * preceding-hour values (irradiance, gusts, precipitation and its probability)
  * belong to the day their interval starts.
  */
-export function localDays(hours: Hour[], timezone: string): LocalDay[] {
+export function localDays<T extends { time: number }>(
+  hours: T[],
+  timezone: string,
+): LocalDay<T>[] {
   const clock = localClock(timezone);
-  const days = new Map<string, LocalDay>();
+  const days = new Map<string, LocalDay<T>>();
   for (const hour of hours) {
     const key = clock(hour.time).day;
     if (!days.has(key)) days.set(key, { key, instants: [], intervals: [] });
@@ -290,7 +294,12 @@ export function normalSeries(
   });
 }
 
-export function forecastCsv(hours: Hour[], timezone: string) {
+export function forecastCsv(
+  hours: Hour[],
+  timezone: string,
+  uncertainty?: Uncertainty,
+) {
+  const ranges = new Map(uncertainty?.hourly.map((h) => [h.time, h]));
   const headings = [
     "time_utc",
     "local_time",
@@ -303,6 +312,17 @@ export function forecastCsv(hours: Hour[], timezone: string) {
     "relative_humidity_pct",
     "precipitation_preceding_hour_mm",
     "precipitation_probability_pct",
+    ...(uncertainty
+      ? [
+          ...[
+            "ensemble_temperature_C",
+            "ensemble_solar_preceding_hour_mean_W_m2",
+          ].flatMap((name) => ["p10", "p50", "p90"].map((p) => `${name}_${p}`)),
+          "ensemble_model",
+          "ensemble_retrieved_utc",
+          "ensemble_calibrated",
+        ]
+      : []),
   ];
   const local = new Intl.DateTimeFormat("sv-SE", {
     timeZone: timezone,
@@ -324,6 +344,21 @@ export function forecastCsv(hours: Hour[], timezone: string) {
         h.humidityPct,
         h.precipitationMm,
         h.precipitationProbabilityPct,
+        ...(uncertainty
+          ? [
+              ...[
+                ranges.get(h.time)?.temperatureC,
+                ranges.get(h.time)?.solarIrradianceWm2,
+              ].flatMap((r) => [
+                r?.p10 ?? null,
+                r?.p50 ?? null,
+                r?.p90 ?? null,
+              ]),
+              uncertainty.model,
+              new Date(uncertainty.source.retrievedAt).toISOString(),
+              false,
+            ]
+          : []),
       ]
         .map((value) =>
           value === null ? "" : `"${String(value).replaceAll('"', '""')}"`,

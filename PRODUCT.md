@@ -22,7 +22,7 @@ Help an analyst understand what weather and electricity forecasts show, when imp
 
 ## Positioning
 
-A daily summary by local day answers first, in two boxes. Temperature: range, degree days, difference from normal and revision since the previous model run. Solar: energy, peak hour, difference from normal, revision and cloud. Inline hourly temperature and irradiance plots share one cursor with explainable hours to watch. Geographic point selection stays deliberate. Trading execution, calibrated load and price prediction remain outside the current product.
+A daily summary by local day answers first, in two boxes. Temperature: range, degree days, difference from normal and revision since the previous model run. Solar: energy, peak hour, difference from normal, revision and cloud. Inline hourly temperature and irradiance plots share one cursor with explainable hours to watch. An opt-in Forecast range adds ECMWF ensemble P10–P90 bands, P50 readouts and daily degree-day and solar-energy ranges alongside the point forecast; this spread has not been calibrated against outcomes. Geographic point selection stays deliberate. Trading execution, calibrated load and price prediction remain outside the current product.
 
 The Energy Markets Delivery desk adds synchronized demand, generation, wind/solar forecast and price charts with a delivery-period inspector. Point weather remains clearly labelled context. Three transparent metrics describe residual load, consumption error against an earlier collected forecast, and observed forecast revisions; they do not imply portfolio costs or trading recommendations.
 

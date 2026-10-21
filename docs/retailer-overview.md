@@ -153,6 +153,8 @@ So one fragment shader was written for the purpose: about 150 lines and no depen
 - **The condition icon now repeats what the sky shows.** It stays for the still and no-WebGL states, and as a glyph beside the label.
 - **The summary boxes do not join the hover group.** The request named three tiles, and the boxes' sticky day column paints its own background.
 
-## Next product increment
+## Forecast ranges and next steps
 
-Uncertainty is the next headline improvement: an ensemble (for example ECMWF ENS through Open-Meteo's Ensemble API) gives a P10-P90 range for each day's mean temperature and solar energy, which tells a trader how far to trust a revision or an anomaly. After that, weighting several monitoring points by customer load turns point degree days into portfolio degree days. Customer load history, PV capacity and an identified market are still required before any MWh or price view.
+The Weather desk's Forecast range control adds the ECMWF IFS ensemble's P10–P90 spread and P50 median to hourly temperature and irradiance. Daily HDD, CDD and solar energy are calculated for every member before taking percentiles. Point forecasts stay visible, and missing member coverage leaves gaps. The range is model spread: it has not been checked for 80% coverage of observations and cannot establish whether a revision is noise. [Methodology](forecast-ranges.md).
+
+Empirical consumption bands need a separate forecast-history and calibration check. Weighting monitoring points by customer load could then turn point degree days into portfolio degree days. Customer load history and PV capacity are still required before translating these weather indicators into a retailer's MWh exposure.

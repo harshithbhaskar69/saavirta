@@ -34,6 +34,11 @@ import { MarketWorkspace } from "@/features/markets/workspace";
 import { HORIZONS } from "@/features/weather/types";
 import { useForecast } from "@/features/weather/use-forecast";
 import { useBaselines } from "@/features/weather/use-baselines";
+import { useUncertainty } from "@/features/weather/use-uncertainty";
+import {
+  ENSEMBLE_FRESH_MS,
+  ENSEMBLE_MAX_AGE_MS,
+} from "@/features/weather/uncertainty";
 import { hex, skyScene } from "@/features/weather/sky";
 import { WELCOME_FOCUS, WELCOME_TEXT } from "@/features/weather/welcome-sky";
 import {
@@ -311,6 +316,7 @@ export function ForecastDesk({ mapKey }: { mapKey: string }) {
   const { query, refresh } = useForecast(place, horizon),
     data = query.data;
   const baselines = useBaselines(place);
+  const [showRange, setShowRange] = useState(false);
   const [refreshing, setRefreshing] = useState(false);
   const manualRefresh = () => {
     if (refreshing || !navigator.onLine) return;
@@ -330,6 +336,13 @@ export function ForecastDesk({ mapKey }: { mapKey: string }) {
     data &&
     Math.max(now, data.source.servedAt) - data.source.retrievedAt <= 7_200_000
       ? data
+      : undefined;
+  const ensemble = useUncertainty(place, forecast, showRange);
+  const uncertainty =
+    showRange &&
+    ensemble.data &&
+    now - ensemble.data.source.retrievedAt <= ENSEMBLE_MAX_AGE_MS
+      ? ensemble.data
       : undefined;
   const old = age >= 15,
     partial =
@@ -816,6 +829,18 @@ export function ForecastDesk({ mapKey }: { mapKey: string }) {
                   <>
                     <DailySummary
                       forecast={forecast}
+                      ensemble={{
+                        enabled: showRange,
+                        data: uncertainty,
+                        isFetching: ensemble.isFetching,
+                        isError: ensemble.isError,
+                        stale:
+                          !!uncertainty &&
+                          now - uncertainty.source.retrievedAt >=
+                            ENSEMBLE_FRESH_MS,
+                        toggle: () => setShowRange((value) => !value),
+                        retry: () => void ensemble.refetch(),
+                      }}
                       selectedTime={selectedTime}
                       onInspect={inspect}
                       dark={theme === "dark"}
@@ -851,6 +876,7 @@ export function ForecastDesk({ mapKey }: { mapKey: string }) {
                           >
                             <Charts
                               forecast={forecast}
+                              uncertainty={uncertainty}
                               baselines={baselines.data}
                               selectedTime={selectedTime}
                               onInspect={inspect}

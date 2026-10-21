@@ -2727,6 +2727,53 @@ kbd {
   font-size: 12px;
   color: var(--muted);
 }
+.range-toggle[aria-pressed="true"] {
+  background: var(--ink);
+  color: var(--surface);
+  border-color: var(--ink);
+}
+.ensemble-note {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 4px 8px;
+  margin-bottom: 10px;
+  font-size: 13px;
+  color: var(--muted);
+}
+.ensemble-note p {
+  flex: 1 1 240px;
+}
+.daily-table td .daily-range {
+  white-space: nowrap;
+  margin-top: 3px;
+}
+.inspection-range {
+  display: block;
+  margin-top: 6px;
+  color: var(--muted);
+  font-size: 12px;
+  font-weight: 400;
+  line-height: 1.5;
+}
+.ensemble-legend {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px 16px;
+  margin-top: 12px;
+  font-size: 12px;
+  color: var(--muted);
+}
+.ensemble-legend > span {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+}
+.series-mark.ensemble-band {
+  height: 10px;
+  border-block: 1px dashed var(--temp);
+  background: color-mix(in srgb, var(--temp) 15%, transparent);
+}
 /* While another horizon loads, the previous window stays, dimmed. */
 main :is(.daily-boxes, .daily-sources, .daily-conditions, .analysis-row) {
   transition: opacity 150ms ease;

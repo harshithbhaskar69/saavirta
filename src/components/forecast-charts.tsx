@@ -9,9 +9,9 @@ import {
 } from "react";
 import {
   ResponsiveContainer,
-  LineChart,
+  ComposedChart,
+  Area,
   Line,
-  BarChart,
   Bar,
   Cell,
   CartesianGrid,
@@ -23,6 +23,7 @@ import {
 } from "recharts";
 import { DownloadSimpleIcon } from "@phosphor-icons/react";
 import type { Baselines, Forecast, Hour } from "@/features/weather/types";
+import type { Uncertainty } from "@/features/weather/uncertainty";
 import {
   forecastCsv,
   localDays,
@@ -38,7 +39,7 @@ import {
   localTime,
   offset,
 } from "@/lib/time";
-import { show } from "./daily-summary";
+import { rangeText, show } from "./daily-summary";
 import { AnimatedBackground } from "./motion/animated-background";
 
 const HALF_HOUR = HOUR / 2;
@@ -56,6 +57,7 @@ const STEPS: Record<string, number> = {
 
 export function ForecastCharts({
   forecast,
+  uncertainty,
   baselines,
   selectedTime,
   onInspect,
@@ -63,6 +65,7 @@ export function ForecastCharts({
   onFocusDay,
 }: {
   forecast: Forecast;
+  uncertainty?: Uncertainty;
   baselines: Baselines | undefined;
   selectedTime: number | null;
   onInspect: (time: number) => void;
@@ -78,6 +81,10 @@ export function ForecastCharts({
     location: { timezone },
   } = forecast;
   const days = useMemo(() => localDays(hourly, timezone), [hourly, timezone]);
+  const ranges = useMemo(
+    () => new Map(uncertainty?.hourly.map((h) => [h.time, h])),
+    [uncertainty],
+  );
   const focused = days.find((d) => d.key === focusDay);
   // A focused day shows its own instants and the solar intervals that start in it.
   const instants = focused?.instants ?? hourly,
@@ -116,14 +123,27 @@ export function ForecastCharts({
     return {
       ticks,
       dayStarts,
-      temperature: instants.map((h) => ({
-        ...h,
-        normalC: normalAt.get(h.time) ?? null,
-      })),
+      temperature: instants.map((h) => {
+        const range = ranges.get(h.time)?.temperatureC;
+        return {
+          ...h,
+          normalC: normalAt.get(h.time) ?? null,
+          range: range ? [range.p10, range.p90] : null,
+          median: range?.p50 ?? null,
+        };
+      }),
       // Irradiance is the preceding hour's mean: draw each bar across that hour.
-      solar: intervals.map((h) => ({ ...h, mid: h.time - HALF_HOUR })),
+      solar: intervals.map((h) => {
+        const range = ranges.get(h.time)?.solarIrradianceWm2;
+        return {
+          ...h,
+          mid: h.time - HALF_HOUR,
+          range: range ? [range.p10, range.p90] : null,
+          median: range?.p50 ?? null,
+        };
+      }),
     };
-  }, [instants, intervals, focused, normals, hourly, timezone]);
+  }, [instants, intervals, focused, normals, hourly, timezone, ranges]);
   // A final midnight sample can have no preceding-hour intervals in its own day.
   const domain: [number, number] = [
     Math.min(
@@ -152,6 +172,7 @@ export function ForecastCharts({
     [temperature, selected.time],
   );
   const normalNow = normals?.[hourly.indexOf(selected)] ?? null;
+  const selectedRange = ranges.get(selected.time);
   const dayLabel = new Intl.DateTimeFormat("en-GB", {
     timeZone: timezone,
     weekday: "short",
@@ -227,7 +248,7 @@ export function ForecastCharts({
   const interval = `${localTime(selected.time - HOUR, timezone)}-${localTime(selected.time, timezone)}`;
   const download = () => {
     const url = URL.createObjectURL(
-      new Blob([forecastCsv(hourly, timezone)], {
+      new Blob([forecastCsv(hourly, timezone, uncertainty)], {
         type: "text/csv;charset=utf-8",
       }),
     );
@@ -287,6 +308,13 @@ export function ForecastCharts({
         <div className="inspection-value temperature">
           {formatNumber(selected.temperatureC)}
           <small>{selected.temperatureC === null ? "temperature" : "°C"}</small>
+          {uncertainty && (
+            <span className="inspection-range">
+              ECMWF P10–P90 {rangeText(selectedRange?.temperatureC)} °C
+              <br />
+              P50 {formatNumber(selectedRange?.temperatureC?.p50 ?? null)} °C
+            </span>
+          )}
         </div>
         <div className="inspection-value irradiance">
           {formatNumber(selected.solarIrradianceWm2, 0)}
@@ -294,6 +322,19 @@ export function ForecastCharts({
             {selected.solarIrradianceWm2 === null ? "irradiance" : "W/m²"}, mean{" "}
             {interval}
           </small>
+          {uncertainty && (
+            <span className="inspection-range">
+              ECMWF P10–P90 {rangeText(selectedRange?.solarIrradianceWm2, 0)}{" "}
+              W/m²
+              <br />
+              P50{" "}
+              {formatNumber(
+                selectedRange?.solarIrradianceWm2?.p50 ?? null,
+                0,
+              )}{" "}
+              W/m²
+            </span>
+          )}
         </div>
         <dl className="readout-context">
           {normals && (
@@ -328,6 +369,19 @@ export function ForecastCharts({
           </div>
         </dl>
       </div>
+      {uncertainty && (
+        <p className="ensemble-legend">
+          <span>
+            <span className="series-mark ensemble-band" aria-hidden="true" />
+            ECMWF P10–P90 band
+          </span>
+          <span>
+            <span className="series-mark normal" aria-hidden="true" />
+            P50 median
+          </span>
+          <span>Solid line / bars: point forecast</span>
+        </p>
+      )}
       <div className="plots">
         <div className="chart-block">
           <h3 className="chart-title">
@@ -342,7 +396,7 @@ export function ForecastCharts({
           </h3>
           <div className="chart-canvas" aria-hidden="true">
             <ResponsiveContainer width="100%" height="100%" minWidth={0}>
-              <LineChart
+              <ComposedChart
                 data={split}
                 margin={{ left: MARGIN_LEFT, right: 0, top: 8, bottom: 0 }}
                 accessibilityLayer={false}
@@ -358,6 +412,33 @@ export function ForecastCharts({
                   domain={["auto", "auto"]}
                 />
                 {dayLines}
+                {uncertainty && (
+                  <>
+                    <Area
+                      type="linear"
+                      dataKey="range"
+                      fill="var(--temp)"
+                      fillOpacity={0.15}
+                      stroke="var(--temp)"
+                      strokeWidth={1}
+                      strokeDasharray="2 3"
+                      isAnimationActive={false}
+                      connectNulls={false}
+                      activeDot={false}
+                    />
+                    <Line
+                      type="linear"
+                      dataKey="median"
+                      stroke="var(--temp)"
+                      strokeDasharray="6 3"
+                      strokeWidth={1.5}
+                      dot={false}
+                      activeDot={false}
+                      isAnimationActive={false}
+                      connectNulls={false}
+                    />
+                  </>
+                )}
                 {normals && (
                   <Line
                     type="linear"
@@ -405,7 +486,7 @@ export function ForecastCharts({
                     ifOverflow="hidden"
                   />
                 )}
-              </LineChart>
+              </ComposedChart>
             </ResponsiveContainer>
           </div>
         </div>
@@ -416,7 +497,7 @@ export function ForecastCharts({
           </h3>
           <div className="chart-canvas solar" aria-hidden="true">
             <ResponsiveContainer width="100%" height="100%" minWidth={0}>
-              <BarChart
+              <ComposedChart
                 data={solar}
                 margin={{ left: MARGIN_LEFT, right: 0, top: 8, bottom: 0 }}
                 accessibilityLayer={false}
@@ -459,8 +540,35 @@ export function ForecastCharts({
                     />
                   ))}
                 </Bar>
+                {uncertainty && (
+                  <>
+                    <Area
+                      type="step"
+                      dataKey="range"
+                      fill="var(--solar)"
+                      fillOpacity={0.15}
+                      stroke="var(--solar)"
+                      strokeWidth={1}
+                      strokeDasharray="2 3"
+                      isAnimationActive={false}
+                      connectNulls={false}
+                      activeDot={false}
+                    />
+                    <Line
+                      type="step"
+                      dataKey="median"
+                      stroke="var(--ink)"
+                      strokeDasharray="6 3"
+                      strokeWidth={1.5}
+                      dot={false}
+                      activeDot={false}
+                      isAnimationActive={false}
+                      connectNulls={false}
+                    />
+                  </>
+                )}
                 {cursor}
-              </BarChart>
+              </ComposedChart>
             </ResponsiveContainer>
           </div>
         </div>
@@ -474,7 +582,7 @@ export function ForecastCharts({
           aria-valuemin={0}
           aria-valuemax={inspectionHours.length - 1}
           aria-valuenow={index}
-          aria-valuetext={`${hourLabel(selected.time, timezone)}; ${formatNumber(selected.temperatureC)} degrees Celsius; ${formatNumber(selected.solarIrradianceWm2, 0)} watts per square metre`}
+          aria-valuetext={`${hourLabel(selected.time, timezone)}; ${formatNumber(selected.temperatureC)} degrees Celsius; ${formatNumber(selected.solarIrradianceWm2, 0)} watts per square metre${uncertainty ? `; ECMWF P10 to P90 temperature ${rangeText(selectedRange?.temperatureC)} degrees Celsius; irradiance ${rangeText(selectedRange?.solarIrradianceWm2, 0)} watts per square metre, mean ${interval}` : ""}`}
           aria-keyshortcuts="ArrowLeft ArrowRight PageUp PageDown Home End"
           onKeyDown={step}
           onPointerDown={(event) => {
@@ -512,6 +620,12 @@ export function ForecastCharts({
                 <th scope="col">Local hour</th>
                 <th scope="col">Temperature °C</th>
                 <th scope="col">Solar mean W/m²</th>
+                {uncertainty && (
+                  <>
+                    <th scope="col">ECMWF temperature P10–P90 / P50 °C</th>
+                    <th scope="col">ECMWF solar mean P10–P90 / P50 W/m²</th>
+                  </>
+                )}
                 <th scope="col">Wind 10m m/s</th>
                 <th scope="col">Gust max m/s</th>
                 <th scope="col">Cloud %</th>
@@ -526,6 +640,23 @@ export function ForecastCharts({
                   <th scope="row">{hourLabel(h.time, timezone)}</th>
                   <td>{formatNumber(h.temperatureC)}</td>
                   <td>{formatNumber(h.solarIrradianceWm2, 0)}</td>
+                  {uncertainty && (
+                    <>
+                      <td>
+                        {rangeText(ranges.get(h.time)?.temperatureC)} /{" "}
+                        {formatNumber(
+                          ranges.get(h.time)?.temperatureC?.p50 ?? null,
+                        )}
+                      </td>
+                      <td>
+                        {rangeText(ranges.get(h.time)?.solarIrradianceWm2, 0)} /{" "}
+                        {formatNumber(
+                          ranges.get(h.time)?.solarIrradianceWm2?.p50 ?? null,
+                          0,
+                        )}
+                      </td>
+                    </>
+                  )}
                   <td>{formatNumber(h.windSpeedMs)}</td>
                   <td>{formatNumber(h.windGustMs)}</td>
                   <td>{formatNumber(h.cloudCoverPct, 0)}</td>

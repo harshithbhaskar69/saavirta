@@ -13,6 +13,8 @@ Weather and electricity-market context for an electricity retailer. Select a poi
 
 The retailer can see when forecast demand is less covered by wind and solar, how the outlook changed during the last hour, and how completed demand compares with a forecast collected approximately 24 hours earlier. These are transparent national indicators, not portfolio volumes, trading recommendations or price predictions. Selected-point weather provides local context; it is not a Finland-wide weather estimate.
 
+On the Weather desk, **Forecast range** adds ECMWF ensemble P10–P90 bands and daily HDD, CDD and solar-energy ranges. These describe model spread, not calibrated probabilities of real outcomes. [Methodology and request costs](docs/forecast-ranges.md).
+
 ## Architecture
 
 ```mermaid

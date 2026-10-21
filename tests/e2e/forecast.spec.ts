@@ -1,6 +1,7 @@
 import { test, expect, type Page } from "@playwright/test";
 import AxeBuilder from "@axe-core/playwright";
 import { baselines, forecast, point } from "../fixtures/weather";
+import { uncertainty } from "../fixtures/ensemble";
 import type { Horizon } from "../../src/features/weather/types";
 import { localClock } from "../../src/lib/time";
 const shared =
@@ -64,6 +65,188 @@ async function mockWeather(page: Page) {
 }
 test.beforeEach(async ({ page }) => {
   await mockWeather(page);
+});
+
+test("ensemble ranges are opt-in, inspectable, exported and available in both themes", async ({
+  page,
+}, testInfo) => {
+  const now = Date.parse("2026-10-21T06:30:00Z");
+  await page.clock.setFixedTime(now);
+  await page.emulateMedia({ colorScheme: "light", reducedMotion: "reduce" });
+  await page.route("**/api/weather**", (route) =>
+    route.fulfill({
+      json: forecast(
+        (new URL(route.request().url()).searchParams.get("horizon") ??
+          "48h") as Horizon,
+        point,
+        now,
+      ),
+    }),
+  );
+  await page.route("**/api/baselines**", (route) =>
+    route.fulfill({ json: baselines(point, now) }),
+  );
+  const calls: string[] = [];
+  await page.route("**/api/uncertainty**", (route) => {
+    calls.push(route.request().url());
+    const params = new URL(route.request().url()).searchParams;
+    return route.fulfill({
+      json: uncertainty(
+        Number(params.get("start")),
+        params.get("horizon") as Horizon,
+      ),
+    });
+  });
+  const errors: string[] = [];
+  page.on("pageerror", (error) => errors.push(error.message));
+  await page.goto(shared);
+  const toggle = page.getByRole("button", {
+    name: "Forecast range",
+    exact: true,
+  });
+  await expect(toggle).toHaveAttribute("aria-pressed", "false");
+  expect(calls).toHaveLength(0);
+  await toggle.focus();
+  await page.keyboard.press("Enter");
+  await expect(page.locator(".ensemble-note")).toContainText("51 members");
+  await expect(page.locator(".daily-range").first()).toContainText("P10–P90");
+  const hourly = page.locator("#hourly");
+  await expect(hourly.locator(".recharts-area-area")).toHaveCount(2);
+  const slider = hourly.getByRole("slider", {
+    name: "Forecast hour",
+    exact: true,
+  });
+  await slider.focus();
+  await page.keyboard.press("ArrowRight");
+  await expect(slider).toHaveAttribute(
+    "aria-valuetext",
+    /ECMWF P10 to P90 temperature/,
+  );
+  const downloadPromise = page.waitForEvent("download");
+  await hourly.getByRole("button", { name: "Export CSV" }).click();
+  const stream = await (await downloadPromise).createReadStream();
+  let csv = "";
+  for await (const chunk of stream!) csv += chunk.toString();
+  expect(csv).toContain("ensemble_temperature_C_p10");
+  expect(csv).toContain("ensemble_calibrated");
+  await hourly.getByText("View hourly data", { exact: true }).click();
+  await expect(
+    hourly.getByRole("columnheader", {
+      name: "ECMWF temperature P10–P90 / P50 °C",
+    }),
+  ).toBeVisible();
+  await hourly.getByText("View hourly data", { exact: true }).click();
+  await page
+    .getByRole("button", { name: "About forecast ranges", exact: true })
+    .click();
+  await expect(
+    page.getByText(/It has not been checked for 80% coverage/),
+  ).toBeVisible();
+  await page.keyboard.press("Escape");
+  for (const theme of ["light", "dark"] as const) {
+    await page.emulateMedia({ colorScheme: theme });
+    await expect(page.locator("html")).toHaveAttribute("data-theme", theme);
+    expect((await new AxeBuilder({ page }).analyze()).violations).toEqual([]);
+    expect(
+      await page.evaluate(
+        () => document.documentElement.scrollWidth <= innerWidth,
+      ),
+    ).toBe(true);
+    if (process.env.CAPTURE_VISUALS) {
+      await page.locator(".map-surface").scrollIntoViewIfNeeded();
+      await expect(page.locator(".map-surface")).toHaveAttribute(
+        "data-ready",
+        "true",
+      );
+      await page.evaluate(() => scrollTo(0, 0));
+      await page.screenshot({
+        path: `.impeccable/review/uncertainty-${testInfo.project.name}-${theme}.png`,
+        fullPage: true,
+      });
+      await hourly.screenshot({
+        path: `.impeccable/review/uncertainty-${testInfo.project.name}-${theme}-charts.png`,
+        style: ".skip-link:not(:focus) { visibility: hidden; }",
+      });
+    }
+  }
+  await toggle.click();
+  await expect(hourly.locator(".recharts-area-area")).toHaveCount(0);
+  await toggle.click();
+  await expect(hourly.locator(".recharts-area-area")).toHaveCount(2);
+  expect(calls).toHaveLength(1);
+  await page.getByRole("button", { name: "7d", exact: true }).click();
+  await expect(slider).toHaveAttribute("aria-valuemax", "167");
+  await expect.poll(() => calls.length).toBe(2);
+  expect(errors).toEqual([]);
+});
+
+test("unavailable and partial ensemble ranges leave the point forecast usable", async ({
+  page,
+}) => {
+  let fail = true;
+  await page.route("**/api/uncertainty**", async (route) => {
+    if (fail)
+      return route.fulfill({
+        status: 503,
+        json: { error: { message: "Unavailable" } },
+      });
+    const params = new URL(route.request().url()).searchParams;
+    const data = uncertainty(Number(params.get("start")), "48h");
+    data.source.retrievedAt -= 2 * 3_600_000;
+    data.source.stale = true;
+    data.source.refreshFailed = true;
+    data.hourly[0].temperatureC = null;
+    data.daily[0].heatingDegreeDays = null;
+    await route.fulfill({ json: data });
+  });
+  await page.goto(shared);
+  await page
+    .getByRole("button", { name: "Forecast range", exact: true })
+    .click();
+  await expect(page.locator(".ensemble-note")).toContainText(
+    "Forecast ranges are unavailable",
+  );
+  await expect(
+    page.getByRole("slider", { name: "Forecast hour", exact: true }),
+  ).toBeVisible();
+  fail = false;
+  await page.getByRole("button", { name: "Retry ranges", exact: true }).click();
+  await expect(page.locator(".ensemble-note")).toContainText(
+    "Using an older retrieval",
+  );
+  await expect(page.locator(".daily-range").first()).toHaveText("P10–P90 n/a");
+  await expect(page.locator(".inspection-range").first()).toContainText(
+    "P10–P90 n/a",
+  );
+});
+
+test("private ensemble coordinates stay in POST bodies", async ({
+  page,
+  context,
+}) => {
+  await context.grantPermissions(["geolocation"]);
+  await context.setGeolocation(point);
+  let captured:
+    { url: string; method: string; body: Record<string, unknown> } | undefined;
+  await page.route("**/api/uncertainty**", (route) => {
+    const request = route.request();
+    const body = request.postDataJSON();
+    captured = { url: request.url(), method: request.method(), body };
+    return route.fulfill({ json: uncertainty(body.start, body.horizon) });
+  });
+  await page.goto("/");
+  await page
+    .getByRole("button", { name: "Use my location", exact: true })
+    .click();
+  await page.getByRole("button", { name: /Use precise location/ }).click();
+  await page
+    .getByRole("button", { name: "Forecast range", exact: true })
+    .click();
+  await expect(page.locator(".ensemble-note")).toContainText("51 members");
+  expect(captured?.method).toBe("POST");
+  expect(new URL(captured!.url).search).toBe("");
+  expect(captured?.body).toMatchObject(point);
+  expect(page.url()).not.toContain(String(point.latitude));
 });
 
 test("condition details expose hourly wind and cloud timing without additional requests", async ({

@@ -1,6 +1,7 @@
 import { env } from "cloudflare:workers";
 import { createWeatherService } from "./service";
 import { createBaselineService } from "./baselines";
+import { createUncertaintyService } from "./uncertainty-service";
 import { loadWeather } from "./provider";
 import type { Snapshot } from "./types";
 import { protectedFetch } from "@/lib/protected-fetch";
@@ -39,6 +40,21 @@ export const weatherService = createWeatherService(
 );
 
 export const baselineService = createBaselineService(
+  {
+    get: (key) => env.WEATHER_CACHE.get(key, "json"),
+    put: (key, value, ttlSeconds) =>
+      env.WEATHER_CACHE.put(key, JSON.stringify(value), {
+        expirationTtl: ttlSeconds,
+      }),
+  },
+  env.WEATHER_PROVIDER_MODE,
+  apiKey(),
+  Date.now,
+  protectedFetch,
+  (event) => console.warn(JSON.stringify({ event })),
+);
+
+export const uncertaintyService = createUncertaintyService(
   {
     get: (key) => env.WEATHER_CACHE.get(key, "json"),
     put: (key, value, ttlSeconds) =>

@@ -13,6 +13,10 @@ import {
 } from "@phosphor-icons/react";
 import type { Baselines, Forecast } from "@/features/weather/types";
 import {
+  type ForecastRange,
+  type Uncertainty,
+} from "@/features/weather/uncertainty";
+import {
   compareDays,
   COOLING_BASE_C,
   dailySummary,
@@ -20,7 +24,13 @@ import {
   relativeDays,
   type DayComparison,
 } from "@/features/weather/overview";
-import { formatNumber, HOUR, localDate, localTime } from "@/lib/time";
+import {
+  formatNumber,
+  HOUR,
+  hourLabel,
+  localDate,
+  localTime,
+} from "@/lib/time";
 import { InfoTip } from "./info-tip";
 import { TextShimmer } from "./motion/text-shimmer";
 import { TransitionPanel } from "./motion/transition-panel";
@@ -46,6 +56,13 @@ const loading = (
 );
 export const show = (value: number | null, digits = 1): ReactNode =>
   value === null ? missing : formatNumber(value, digits);
+export const rangeText = (
+  range: ForecastRange | null | undefined,
+  digits = 1,
+) =>
+  range
+    ? `${formatNumber(range.p10, digits)}–${formatNumber(range.p90, digits)}`
+    : "n/a";
 // Signed comparisons use a true minus sign so columns of + and − align.
 const signed = (value: number, digits: number, suffix = "") => {
   const rounded = Number(value.toFixed(digits));
@@ -69,6 +86,7 @@ export type BaselineState = {
 
 export function DailySummary({
   forecast,
+  ensemble,
   baselines,
   focusDay,
   onFocusDay,
@@ -79,6 +97,15 @@ export function DailySummary({
   onInspect,
 }: {
   forecast: Forecast;
+  ensemble: {
+    enabled: boolean;
+    data: Uncertainty | undefined;
+    isFetching: boolean;
+    isError: boolean;
+    stale: boolean;
+    toggle: () => void;
+    retry: () => void;
+  };
   baselines: BaselineState;
   focusDay: string | null;
   onFocusDay: (day: string | null) => void;
@@ -106,6 +133,14 @@ export function DailySummary({
     () => dailySummary(hourly, timezone),
     [hourly, timezone],
   );
+  const ranges = new Map(ensemble.data?.daily.map((day) => [day.key, day]));
+  const rangeNote = (range: ForecastRange | null | undefined, digits = 1) =>
+    ensemble.data && (
+      <small className="daily-range">
+        <span className="sr-only">P10–P90 </span>
+        {rangeText(range, digits)}
+      </small>
+    );
   const comparisons = useMemo(
     () => compareDays(hourly, timezone, baselines.data),
     [hourly, timezone, baselines.data],
@@ -176,6 +211,7 @@ export function DailySummary({
       v === null || v === undefined ? "" : String(Number(v.toFixed(2)));
     const rows = days.map((day, i) => {
       const c = comparisons.get(day.key);
+      const range = ranges.get(day.key);
       return [
         labels[i].partial
           ? `${labels[i].name} (${labels[i].note})`
@@ -195,6 +231,18 @@ export function DailySummary({
           ? ""
           : `${time(day.solarPeakTime - HOUR)}-${time(day.solarPeakTime)}`,
         value(day.cloudMeanPct),
+        ...(ensemble.data
+          ? [
+              ...[
+                range?.heatingDegreeDays,
+                range?.coolingDegreeDays,
+                range?.solarEnergyKwhM2,
+              ].flatMap((r) => [value(r?.p10), value(r?.p50), value(r?.p90)]),
+              ensemble.data.model,
+              new Date(ensemble.data.source.retrievedAt).toISOString(),
+              "Uncalibrated ensemble spread",
+            ]
+          : []),
       ].join("\t");
     });
     try {
@@ -215,6 +263,16 @@ export function DailySummary({
             "Peak W/m²",
             "Peak hour",
             "Cloud %",
+            ...(ensemble.data
+              ? [
+                  ...["ECMWF HDD", "ECMWF CDD", "ECMWF Solar kWh/m²"].flatMap(
+                    (name) => ["P10", "P50", "P90"].map((p) => `${name} ${p}`),
+                  ),
+                  "Ensemble model",
+                  "Ensemble retrieved UTC",
+                  "Range interpretation",
+                ]
+              : []),
           ].join("\t"),
           ...rows,
         ].join("\n"),
@@ -236,6 +294,14 @@ export function DailySummary({
           {updating && <TextShimmer>{updating}</TextShimmer>}
         </span>
         <div className="summary-actions" style={filterAnchor}>
+          <button
+            type="button"
+            className="button range-toggle"
+            aria-pressed={ensemble.enabled}
+            onClick={ensemble.toggle}
+          >
+            Forecast range
+          </button>
           <button
             type="button"
             className="button metric-filter-button"
@@ -314,6 +380,59 @@ export function DailySummary({
       <p id={`${id}-focus`} hidden>
         Shows this day in the weather tiles and hourly forecast
       </p>
+      {ensemble.enabled && (
+        <div className="ensemble-note">
+          <p role="status">
+            {ensemble.data ? (
+              <>
+                ECMWF P10–P90 below daily totals · 51 members. Model spread, not
+                a calibrated probability.
+                {(ensemble.isError ||
+                  ensemble.data.source.refreshFailed ||
+                  ensemble.stale) &&
+                  " Using an older retrieval."}
+              </>
+            ) : ensemble.isFetching ? (
+              "Loading forecast ranges…"
+            ) : (
+              "Forecast ranges are unavailable. The point forecast is still shown."
+            )}
+          </p>
+          <InfoTip label="About forecast ranges">
+            <p>
+              The range spans the 10th to 90th percentiles of 51 ECMWF ensemble
+              members; P50 is their median. It has not been checked for 80%
+              coverage of real outcomes.
+            </p>
+            <p>
+              HDD, CDD and solar totals are calculated separately for every
+              member before taking percentiles, over the same forecast hours
+              shown here. A missing member or hour leaves a gap.
+            </p>
+            <p>
+              This model is separate from the point forecast. Its native
+              three-hour steps are interpolated to hourly output by Open-Meteo.
+              A revision inside this range is not, by itself, evidence of noise.
+            </p>
+            {ensemble.data && (
+              <p>
+                Retrieved{" "}
+                {hourLabel(ensemble.data.source.retrievedAt, timezone)}. The
+                provider does not identify the model run in this response.
+              </p>
+            )}
+          </InfoTip>
+          {!ensemble.data && !ensemble.isFetching && (
+            <button
+              type="button"
+              className="text-button"
+              onClick={ensemble.retry}
+            >
+              Retry ranges
+            </button>
+          )}
+        </div>
+      )}
       <div className="daily-boxes">
         <section className="daily-box" aria-labelledby={`${id}-t`}>
           <MetricSky
@@ -354,7 +473,7 @@ export function DailySummary({
           <div
             className="daily-scroll"
             role="region"
-            aria-labelledby={`${id}-t`}
+            aria-label="Temperature summary table"
             tabIndex={0}
           >
             <table className="daily-table" aria-labelledby={`${id}-t`}>
@@ -430,8 +549,14 @@ export function DailySummary({
                         NOTABLE.revisionC,
                       )}
                     </td>
-                    <td>{show(day.heatingDegreeDays)}</td>
-                    <td>{show(day.coolingDegreeDays)}</td>
+                    <td>
+                      {show(day.heatingDegreeDays)}
+                      {rangeNote(ranges.get(day.key)?.heatingDegreeDays)}
+                    </td>
+                    <td>
+                      {show(day.coolingDegreeDays)}
+                      {rangeNote(ranges.get(day.key)?.coolingDegreeDays)}
+                    </td>
                   </tr>
                 ))}
               </tbody>
@@ -470,7 +595,7 @@ export function DailySummary({
           <div
             className="daily-scroll"
             role="region"
-            aria-labelledby={`${id}-s`}
+            aria-label="Solar summary table"
             tabIndex={0}
           >
             <table className="daily-table" aria-labelledby={`${id}-s`}>
@@ -514,6 +639,7 @@ export function DailySummary({
                           />
                         </span>
                       </span>
+                      {rangeNote(ranges.get(day.key)?.solarEnergyKwhM2, 2)}
                     </td>
                     <td>
                       {comparison(

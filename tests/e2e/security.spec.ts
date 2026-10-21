@@ -1,5 +1,29 @@
 import { test, expect } from "@playwright/test";
 
+test("uncertainty API rejects invalid windows and oversized private requests", async ({
+  request,
+}) => {
+  for (const query of [
+    "lat=60&lon=25&horizon=48h",
+    "lat=60&lon=25&horizon=48h&start=0",
+    "lat=60&lon=25&horizon=48h&start=1&start=2",
+    "lat=100&lon=25&horizon=48h&start=1",
+  ]) {
+    const response = await request.get(`/api/uncertainty?${query}`);
+    expect(response.status()).toBe(400);
+    expect(response.headers()["cache-control"]).toBe("no-store");
+    expect((await response.json()).error.requestId).toBeTruthy();
+  }
+  const response = await request.post("/api/uncertainty", {
+    data: { latitude: 60, longitude: 25, horizon: "48h", start: "invalid" },
+  });
+  expect(response.status()).toBe(400);
+  const oversized = await request.post("/api/uncertainty", {
+    data: { padding: "x".repeat(600) },
+  });
+  expect(oversized.status()).toBe(400);
+});
+
 test("built HTML uses unique script nonces, private caching and a working CSP", async ({
   page,
   request,

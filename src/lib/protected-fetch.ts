@@ -2,7 +2,13 @@ import { env } from "cloudflare:workers";
 import { AppError } from "./errors";
 
 const hosts = new Set(
-  ["api", "geocoding-api", "archive-api", "single-runs-api"].flatMap((name) => [
+  [
+    "api",
+    "geocoding-api",
+    "archive-api",
+    "single-runs-api",
+    "ensemble-api",
+  ].flatMap((name) => [
     `${name}.open-meteo.com`,
     `customer-${name}.open-meteo.com`,
   ]),
@@ -24,6 +30,13 @@ export const protectedFetch: typeof fetch = async (input, init) => {
       503,
     );
   const params = url.searchParams;
+  const ensemble = url.hostname.endsWith("ensemble-api.open-meteo.com");
+  if (ensemble && params.get("models") !== "ecmwf_ifs025")
+    throw new AppError(
+      "CONFIGURATION",
+      "The ensemble model is not configured.",
+      503,
+    );
   const variables = ["hourly", "daily", "current"].reduce(
     (count, key) => count + (params.get(key)?.split(",").length ?? 0),
     0,
@@ -36,7 +49,9 @@ export const protectedFetch: typeof fetch = async (input, init) => {
         1
       : Number(params.get("forecast_hours") ?? 24) / 24;
   const cost =
-    Math.max(1, Math.ceil(variables / 10)) * Math.max(1, Math.ceil(span / 14));
+    // Ensemble members each count as a variable; round up the provider's fractional charge.
+    Math.max(1, Math.ceil((variables * (ensemble ? 51 : 1)) / 10)) *
+    Math.max(1, Math.ceil(span / 14));
   let allowed = false;
   try {
     allowed =
